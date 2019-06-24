@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	tst "github.com/evgeny-myasishchev/pkg/internal/testing"
+	tst "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/internal/testing"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/sirupsen/logrus"

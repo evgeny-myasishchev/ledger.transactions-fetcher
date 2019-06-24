@@ -203,13 +203,10 @@ func TestBuilder(t *testing.T) {
 				name: "WithRemoteSource(appEnv!=dev)",
 				args: args{appEnv: appEnv},
 				run: func(t *testing.T, b *Builder) {
-					source, err := b.WithRemoteSource()()
-					if !assert.NoError(t, err) {
+					_, err := b.WithRemoteSource()()
+					if !assert.Error(t, err) {
 						return
 					}
-					assert.IsType(t, &awsSSMSource{}, source)
-					awsSSMSource := source.(*awsSSMSource)
-					assert.NotNil(t, awsSSMSource.ssmClient)
 				},
 			}
 		},

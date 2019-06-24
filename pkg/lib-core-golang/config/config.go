@@ -8,7 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/evgeny-myasishchev/pkg/lib-core-golang/diag"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
+
 	uuid "github.com/satori/go.uuid"
 )
 

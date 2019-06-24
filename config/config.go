@@ -1,8 +1,8 @@
 package config
 
 import (
-	"cmd/go/internal/version"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/config"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/version"
 )
 
 var appEnv = config.NewAppEnv(version.AppName)

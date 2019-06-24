@@ -1,4 +1,4 @@
-SERVICE_NAME = ledger-api
+SERVICE_NAME = transactions-fetcher
 
 VERSION = 0.0.4-a
 
