@@ -1,0 +1,21 @@
+FROM golang:1.12
+ARG SERVICE_NAME
+ENV SERVICE_NAME ${SERVICE_NAME}
+
+ENV GO111MODULE=on
+
+WORKDIR /go/src/
+COPY bin/ /go/src/bin/
+
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+COPY go.mod go.sum /go/src/
+RUN go mod download 
+RUN go install github.com/mgechev/revive &&\
+    go install github.com/cespare/reflex
+
+COPY . /go/src/
+RUN make
+
+ENTRYPOINT [ "docker-entrypoint.sh" ]

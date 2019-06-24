@@ -1,0 +1,1 @@
+-d none -s -R vendor. -R node_modules. -R tmp. -R test.log -r \.go$

@@ -1,0 +1,18 @@
+ARG DEV_IMAGE
+FROM ${DEV_IMAGE} as dev
+ARG SERVICE_NAME
+
+FROM alpine:3.9
+ARG SERVICE_NAME
+ENV SERVICE_NAME ${SERVICE_NAME}
+
+RUN apk add --no-cache ca-certificates
+COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+WORKDIR /go/src/
+COPY --from=dev /go/bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
+COPY --from=dev /go/src/geodb/ /go/src/geodb/
+COPY --from=dev /go/src/config/ /go/src/config/
+
+ENTRYPOINT [ "docker-entrypoint.sh" ]
