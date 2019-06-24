@@ -1,5 +1,7 @@
 package config
 
+import "errors"
+
 // Builder is a tool to setup config
 type Builder struct {
 	appEnv         AppEnv
@@ -33,8 +35,7 @@ func (b *Builder) WithRemoteSource() SourceFactory {
 				LocalOpts.WithDir("config"),
 			)
 		}
-		logger.Info(nil, "Using AWS SSM as a remote params source")
-		return NewAWSSSMSource(AwsSSMOpts.WithAppEnv(b.appEnv))
+		return nil, errors.New("Not implemented")
 	}
 }
 

@@ -1,0 +1,6 @@
+{
+    "log": {
+        "logLevel": "debug"
+    },
+    "runtimeEnv": "AWS"
+}
