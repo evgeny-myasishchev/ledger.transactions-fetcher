@@ -14,8 +14,8 @@ type BankTransaction interface {
 
 // FetchParams represents what to fetch from bank
 type FetchParams struct {
-	From          *time.Time
-	To            *time.Time
+	From          time.Time
+	To            time.Time
 	BankAccountID string
 }
 

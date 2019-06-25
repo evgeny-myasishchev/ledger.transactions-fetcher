@@ -2,5 +2,8 @@
     "log": {
         "logLevel": "debug"
     },
-    "runtimeEnv": "AWS"
+    "runtimeEnv": "AWS",
+    "pbanua2x": {
+        "api": "https://api.privatbank.ua/p24api/rest_fiz"
+    }
 }
