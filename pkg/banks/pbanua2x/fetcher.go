@@ -26,5 +26,11 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 
 // NewFetcher creates an instance of a pbanua2x fetcher
 func NewFetcher(ctx context.Context, userID string, cfg banks.FetcherConfig) (banks.Fetcher, error) {
-	return nil, nil
+	var userCfg userConfig
+	if err := cfg.GetUserConfig(ctx, userID, &userCfg); err != nil {
+		return nil, err
+	}
+	return &pbanua2xFetcher{
+		userCfg: &userCfg,
+	}, nil
 }
