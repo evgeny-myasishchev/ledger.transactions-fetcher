@@ -17,6 +17,7 @@ type fsFetcherConfig struct {
 }
 
 func (cfg *fsFetcherConfig) GetUserConfig(ctx context.Context, userID string, receiver interface{}) error {
+	logger.Debug(ctx, "Reading user config: %v", userID)
 	buffer, err := ioutil.ReadFile(path.Join(cfg.dir, userID+".json"))
 	if err != nil {
 		return err
@@ -27,5 +28,6 @@ func (cfg *fsFetcherConfig) GetUserConfig(ctx context.Context, userID string, re
 // NewFSFetcherConfig creates an instance of a fetcher config
 // that is reading from local file system
 func NewFSFetcherConfig(configDir string) FetcherConfig {
+	logger.Info(nil, "Initializing fetcher config: %v", configDir)
 	return &fsFetcherConfig{configDir}
 }

@@ -4,8 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/ledger"
 )
+
+var logger = diag.CreateLogger()
 
 // BankTransaction is a generic type that represents bank transaction
 type BankTransaction interface {
