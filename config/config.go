@@ -15,6 +15,8 @@ var (
 	LogLevel = localParams.NewParam("log/logLevel").String()
 
 	RuntimeEnv = localParams.NewParam("runtimeEnv").String()
+
+	Pbanua2xAPI = localParams.NewParam("pbanua2x/api").String()
 )
 
 // Load will load and initialize config
