@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
@@ -110,7 +111,7 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 		return t
 	}
 	pbTimeForamt := func(t time.Time) string {
-		return fmt.Sprint(t.Day(), ".", t.Month(), ".", t.Year())
+		return fmt.Sprint(t.Day(), ".", int(t.Month()), ".", t.Year())
 	}
 
 	apiURL, err := url.Parse(faker.URL())
@@ -139,8 +140,9 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					expectedData.WriteString(`<prop name="card" value="` + bankAccountID + `" />`)
 					expectedData.WriteString(`</payment>`)
 
-					dataHash := md5.Sum([]byte(expectedData.String() + merchant.Password))
-					dataSign := sha1.Sum(dataHash[:])
+					md5hash := md5.Sum([]byte(expectedData.String() + merchant.Password))
+					md5hashHex := hex.EncodeToString(md5hash[:])
+					signature := sha1.Sum([]byte(md5hashHex))
 
 					var expectedXML strings.Builder
 					expectedXML.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
@@ -148,7 +150,7 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					expectedXML.WriteString(`<merchant>`)
 					expectedXML.WriteString(`<id>` + merchant.ID + `</id>`)
 					expectedXML.WriteString(`<signature>`)
-					expectedXML.Write(dataSign[:])
+					expectedXML.WriteString(hex.EncodeToString(signature[:]))
 					expectedXML.WriteString(`</signature>`)
 					expectedXML.WriteString(`</merchant>`)
 					expectedXML.WriteString(`<data>`)

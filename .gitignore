@@ -1,5 +1,6 @@
 test.log
 tmp/
+config/fetchers
 
 # Binaries for programs and plugins
 *.exe

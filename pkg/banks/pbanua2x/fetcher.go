@@ -4,13 +4,18 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks"
 )
+
+var logger = diag.CreateLogger()
 
 type userConfig struct {
 	UserID string
@@ -31,12 +36,12 @@ type pbanua2xFetcher struct {
 }
 
 func pbTimeForamt(t time.Time) string {
-	return fmt.Sprint(t.Day(), ".", t.Month(), ".", t.Year())
+	return fmt.Sprint(t.Day(), ".", int(t.Month()), ".", t.Year())
 }
 
 func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) ([]banks.BankTransaction, error) {
 
-	fmt.Println(params.BankAccountID)
+	logger.Debug(ctx, "Fetching transactions for account: %v", params.BankAccountID)
 
 	// TODO: Err if no such merchant
 	merchant := f.userCfg.Merchants[params.BankAccountID]
@@ -51,8 +56,9 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	data.WriteString(`<prop name="card" value="` + params.BankAccountID + `" />`)
 	data.WriteString(`</payment>`)
 
-	dataHash := md5.Sum([]byte(data.String() + merchant.Password))
-	signature := sha1.Sum(dataHash[:])
+	md5hash := md5.Sum([]byte(data.String() + merchant.Password))
+	md5hashHex := hex.EncodeToString(md5hash[:])
+	signature := sha1.Sum([]byte(md5hashHex))
 
 	var payload strings.Builder
 	payload.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
@@ -60,7 +66,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	payload.WriteString(`<merchant>`)
 	payload.WriteString(`<id>` + merchant.ID + `</id>`)
 	payload.WriteString(`<signature>`)
-	payload.Write(signature[:])
+	payload.WriteString(hex.EncodeToString(signature[:]))
 	payload.WriteString(`</signature>`)
 	payload.WriteString(`</merchant>`)
 	payload.WriteString(`<data>`)
@@ -68,7 +74,19 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	payload.WriteString(`</data>`)
 	payload.WriteString(`</request>`)
 
+	// TODO: Add a proxy for this so we could do logging and other stuff
 	_, err := http.Post(f.apiURL, "application/xml", strings.NewReader(payload.String()))
+
+	// logger.Debug(ctx, "Got response status: %v", res.StatusCode)
+
+	// defer res.Body.Close()
+	// body, err := ioutil.ReadAll(res.Body)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// TODO: Remove this
+	// logger.Debug(ctx, "Got response body: %s", body)
 
 	return nil, err
 }
@@ -80,6 +98,8 @@ func NewFetcher(ctx context.Context, userID string, cfg banks.FetcherConfig) (ba
 		return nil, err
 	}
 	return &pbanua2xFetcher{
+		// TODO: Parametrize
+		apiURL:  "https://api.privatbank.ua/p24api/rest_fiz",
 		userCfg: &userCfg,
 	}, nil
 }
