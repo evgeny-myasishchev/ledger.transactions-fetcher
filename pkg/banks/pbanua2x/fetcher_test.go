@@ -2,6 +2,8 @@ package pbanua2x
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"net/url"
@@ -127,21 +129,31 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 						To:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
 					}
 
+					var expectedData strings.Builder
+					expectedData.WriteString(`<oper>cmt</oper>`)
+					expectedData.WriteString(`<wait>0</wait>`)
+					expectedData.WriteString(`<test>0</test>`)
+					expectedData.WriteString(`<payment id="">`)
+					expectedData.WriteString(`<prop name="sd" value="` + pbTimeForamt(fetchParams.From) + `" />`)
+					expectedData.WriteString(`<prop name="ed" value="` + pbTimeForamt(fetchParams.From) + `" />`)
+					expectedData.WriteString(`<prop name="card" value="` + bankAccountID + `" />`)
+					expectedData.WriteString(`</payment>`)
+
+					dataHash := md5.Sum([]byte(expectedData.String() + merchant.Password))
+					dataSign := sha1.Sum(dataHash[:])
+
 					var expectedXML strings.Builder
 					expectedXML.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
 					expectedXML.WriteString(`<request version="1.0">`)
 					expectedXML.WriteString(`<merchant>`)
 					expectedXML.WriteString(`<id>` + merchant.ID + `</id>`)
-					expectedXML.WriteString(`<signature></signature>`)
+					expectedXML.WriteString(`<signature>`)
+					expectedXML.Write(dataSign[:])
+					expectedXML.WriteString(`</signature>`)
 					expectedXML.WriteString(`</merchant>`)
-					expectedXML.WriteString(`<data><oper>cmt</oper>`)
-					expectedXML.WriteString(`<wait>0</wait>`)
-					expectedXML.WriteString(`<test>0</test>`)
-					expectedXML.WriteString(`<payment id="">`)
-					expectedXML.WriteString(`<prop name="sd" value="` + pbTimeForamt(fetchParams.From) + `" />`)
-					expectedXML.WriteString(`<prop name="ed" value="` + pbTimeForamt(fetchParams.From) + `" />`)
-					expectedXML.WriteString(`<prop name="card" value="` + bankAccountID + `" />`)
-					expectedXML.WriteString(`</payment></data>`)
+					expectedXML.WriteString(`<data>`)
+					expectedXML.WriteString(expectedData.String())
+					expectedXML.WriteString(`</data>`)
 					expectedXML.WriteString(`</request>`)
 
 					gock.New(apiURL.Scheme+"://"+apiURL.Host).

@@ -2,6 +2,8 @@ package pbanua2x
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/sha1"
 	"fmt"
 	"net/http"
 	"strings"
@@ -39,21 +41,31 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	// TODO: Err if no such merchant
 	merchant := f.userCfg.Merchants[params.BankAccountID]
 
+	var data strings.Builder
+	data.WriteString(`<oper>cmt</oper>`)
+	data.WriteString(`<wait>0</wait>`)
+	data.WriteString(`<test>0</test>`)
+	data.WriteString(`<payment id="">`)
+	data.WriteString(`<prop name="sd" value="` + pbTimeForamt(params.From) + `" />`)
+	data.WriteString(`<prop name="ed" value="` + pbTimeForamt(params.From) + `" />`)
+	data.WriteString(`<prop name="card" value="` + params.BankAccountID + `" />`)
+	data.WriteString(`</payment>`)
+
+	dataHash := md5.Sum([]byte(data.String() + merchant.Password))
+	signature := sha1.Sum(dataHash[:])
+
 	var payload strings.Builder
 	payload.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
 	payload.WriteString(`<request version="1.0">`)
 	payload.WriteString(`<merchant>`)
 	payload.WriteString(`<id>` + merchant.ID + `</id>`)
-	payload.WriteString(`<signature></signature>`)
+	payload.WriteString(`<signature>`)
+	payload.Write(signature[:])
+	payload.WriteString(`</signature>`)
 	payload.WriteString(`</merchant>`)
-	payload.WriteString(`<data><oper>cmt</oper>`)
-	payload.WriteString(`<wait>0</wait>`)
-	payload.WriteString(`<test>0</test>`)
-	payload.WriteString(`<payment id="">`)
-	payload.WriteString(`<prop name="sd" value="` + pbTimeForamt(params.From) + `" />`)
-	payload.WriteString(`<prop name="ed" value="` + pbTimeForamt(params.From) + `" />`)
-	payload.WriteString(`<prop name="card" value="` + params.BankAccountID + `" />`)
-	payload.WriteString(`</payment></data>`)
+	payload.WriteString(`<data>`)
+	payload.WriteString(data.String())
+	payload.WriteString(`</data>`)
 	payload.WriteString(`</request>`)
 
 	_, err := http.Post(f.apiURL, "application/xml", strings.NewReader(payload.String()))
