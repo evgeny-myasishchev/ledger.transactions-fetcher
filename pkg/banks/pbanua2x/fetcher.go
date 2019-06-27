@@ -110,7 +110,14 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 
 	logger.Debug(ctx, "Got response status: %v", res.StatusCode)
 
-	return nil, err
+	statements := apiResp.Data.Info.Statements.Values
+
+	trxs := make([]banks.BankTransaction, len(statements))
+	for i, stmt := range statements {
+		trxs[i] = &stmt
+	}
+
+	return trxs, err
 }
 
 // NewFetcher creates an instance of a pbanua2x fetcher

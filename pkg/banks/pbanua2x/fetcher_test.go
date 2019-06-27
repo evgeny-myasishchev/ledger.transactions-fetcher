@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -120,6 +121,20 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 		return
 	}
 
+	writeStatementString := func(builder *strings.Builder) apiStatement {
+		stmt := apiStatement{
+			XMLName: xml.Name{Local: "statement"},
+			Card:    "card-" + faker.Word(),
+			Appcode: "app-code-" + faker.Word(),
+		}
+		res, err := xml.Marshal(&stmt)
+		if err != nil {
+			panic(err)
+		}
+		builder.Write(res)
+		return stmt
+	}
+
 	tests := []func() testCase{
 		func() testCase {
 			return testCase{
@@ -159,20 +174,36 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					expectedXML.WriteString(`</data>`)
 					expectedXML.WriteString(`</request>`)
 
+					var resp strings.Builder
+					resp.WriteString("<response>")
+					resp.WriteString("<data><info><statements>")
+					statements := []apiStatement{
+						writeStatementString(&resp),
+						writeStatementString(&resp),
+						writeStatementString(&resp),
+					}
+					resp.WriteString("</statements></info></data>")
+					resp.WriteString("</response>")
+
 					gock.New(apiURL.Scheme+"://"+apiURL.Host).
 						Post(apiURL.Path).
 						MatchHeader("content-type", "application/xml").
 						BodyString(expectedXML.String()).
 						Reply(200).
-						BodyString("<response />")
+						BodyString(resp.String())
 
-					_, err := f.Fetch(context.Background(), &fetchParams)
+					trxs, err := f.Fetch(context.Background(), &fetchParams)
 					if !assert.NoError(t, err) {
 						return
 					}
 
 					if !assert.True(t, gock.IsDone()) {
-						fmt.Println(gock.GetUnmatchedRequests())
+						return
+					}
+					assert.Len(t, trxs, len(statements))
+					for _, trx := range trxs {
+						actual := *(trx.(*apiStatement))
+						assert.Contains(t, statements, actual)
 					}
 				},
 			}
