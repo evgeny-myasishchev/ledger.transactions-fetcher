@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"reflect"
 	"strings"
@@ -172,6 +173,32 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					if !assert.True(t, gock.IsDone()) {
 						fmt.Println(gock.GetUnmatchedRequests())
 					}
+				},
+			}
+		},
+		func() testCase {
+			return testCase{
+				name: "fail if non-200 response status",
+				run: func(t *testing.T, f banks.Fetcher) {
+					fetchParams := banks.FetchParams{
+						BankAccountID: bankAccountID,
+						From:          timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+					}
+
+					code := rand.Intn(100) + 300
+
+					gock.New(apiURL.Scheme + "://" + apiURL.Host).
+						Post(apiURL.Path).
+						Reply(code).
+						BodyString("Something went wrong")
+
+					_, err := f.Fetch(context.Background(), &fetchParams)
+					if !assert.Error(t, err) {
+						return
+					}
+
+					assert.EqualError(t, err, fmt.Sprintf("Failed to fetch transactions, got %v status", code))
 				},
 			}
 		},

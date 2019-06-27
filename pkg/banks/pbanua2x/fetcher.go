@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -75,18 +76,27 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	payload.WriteString(`</request>`)
 
 	// TODO: Add a proxy for this so we could do logging and other stuff
-	_, err := http.Post(f.apiURL, "application/xml", strings.NewReader(payload.String()))
+	res, err := http.Post(f.apiURL, "application/xml", strings.NewReader(payload.String()))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
 
-	// logger.Debug(ctx, "Got response status: %v", res.StatusCode)
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
 
-	// defer res.Body.Close()
-	// body, err := ioutil.ReadAll(res.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if res.StatusCode != 200 {
+		logger.
+			WithData(diag.MsgData{
+				"response": string(body),
+			}).
+			Info(ctx, "Failed to fetch transactions with status code: %v", res.StatusCode)
+		return nil, fmt.Errorf("Failed to fetch transactions, got %v status", res.StatusCode)
+	}
 
-	// TODO: Remove this
-	// logger.Debug(ctx, "Got response body: %s", body)
+	logger.Debug(ctx, "Got response status: %v", res.StatusCode)
 
 	return nil, err
 }
