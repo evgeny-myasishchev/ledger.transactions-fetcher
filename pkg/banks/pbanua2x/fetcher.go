@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -89,11 +90,22 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 
 	if res.StatusCode != 200 {
 		logger.
-			WithData(diag.MsgData{
-				"response": string(body),
-			}).
+			WithData(diag.MsgData{"response": string(body)}).
 			Info(ctx, "Failed to fetch transactions with status code: %v", res.StatusCode)
 		return nil, fmt.Errorf("Failed to fetch transactions, got %v status", res.StatusCode)
+	}
+
+	var apiResp apiResponse
+	if err := xml.Unmarshal(body, &apiResp); err != nil {
+		logger.
+			WithData(diag.MsgData{"body": body}).
+			WithError(err).
+			Error(ctx, "Failed to unmarshal response")
+		return nil, err
+	}
+
+	if apiResp.Data.Error != nil {
+		return nil, fmt.Errorf("PB api call failed: %v", apiResp.Data.Error.Message)
 	}
 
 	logger.Debug(ctx, "Got response status: %v", res.StatusCode)

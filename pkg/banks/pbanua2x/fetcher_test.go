@@ -163,7 +163,8 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 						Post(apiURL.Path).
 						MatchHeader("content-type", "application/xml").
 						BodyString(expectedXML.String()).
-						Reply(200)
+						Reply(200).
+						BodyString("<response />")
 
 					_, err := f.Fetch(context.Background(), &fetchParams)
 					if !assert.NoError(t, err) {
@@ -199,6 +200,33 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					}
 
 					assert.EqualError(t, err, fmt.Sprintf("Failed to fetch transactions, got %v status", code))
+				},
+			}
+		},
+		func() testCase {
+			return testCase{
+				name: "fail if error response",
+				run: func(t *testing.T, f banks.Fetcher) {
+					fetchParams := banks.FetchParams{
+						BankAccountID: bankAccountID,
+						From:          timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+					}
+
+					errorMessage := faker.Sentence()
+					respBody := `<response><data><error message="` + errorMessage + `"></error></data></response>`
+
+					gock.New(apiURL.Scheme + "://" + apiURL.Host).
+						Post(apiURL.Path).
+						Reply(200).
+						BodyString(respBody)
+
+					_, err = f.Fetch(context.Background(), &fetchParams)
+					if !assert.Error(t, err) {
+						return
+					}
+
+					assert.EqualError(t, err, "PB api call failed: "+errorMessage)
 				},
 			}
 		},
