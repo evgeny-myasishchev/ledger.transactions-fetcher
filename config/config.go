@@ -17,6 +17,9 @@ var (
 	RuntimeEnv = localParams.NewParam("runtimeEnv").String()
 
 	Pbanua2xAPI = localParams.NewParam("pbanua2x/api").String()
+
+	GoogleClientID     = localParams.NewParam("google/client-id").String()
+	GoogleClientSecret = localParams.NewParam("google/client-secret").String()
 )
 
 // Load will load and initialize config
