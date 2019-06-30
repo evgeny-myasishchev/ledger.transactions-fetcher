@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/oauth"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/config"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
@@ -13,7 +15,8 @@ import (
 var logger = diag.CreateLogger()
 
 var cliArgs struct {
-	cmd string
+	cmd               string
+	authorizationCode string
 }
 
 func init() {
@@ -21,36 +24,20 @@ func init() {
 		defaultGopher = "pocket"
 		usage         = "the variety of gopher"
 	)
-	flag.StringVar(&cliArgs.cmd, "cmd", "", "Command to run. Available commands: auth-url")
+	flag.StringVar(&cliArgs.cmd, "cmd", "", "Command to run. Available commands: auth-url, authorize-code")
+	flag.StringVar(&cliArgs.authorizationCode, "code", "", "Authorization code obtained by following auth-url instruction")
 
 	flag.Parse()
 }
 
-func printAuthUrl(googleClientID string) {
-	authURL, err := url.Parse("https://accounts.google.com/o/oauth2/v2/auth")
-	if err != nil {
-		panic(err)
-	}
-	query := authURL.Query()
-	query.Add("response_type", "code")
-	query.Add("client_id", googleClientID)
-	query.Add("redirect_uri", "urn:ietf:wg:oauth:2.0:oob")
-	query.Add("scope", "email")
-	query.Add("access_type", "offline")
-	authURL.RawQuery = query.Encode()
-
-	fmt.Println("Copy url below and paste it into the browser.")
-	fmt.Println("Then follow the instruction and use rake get-access-token[code] with the code displayed")
-	fmt.Println("The url:")
-	fmt.Println(authURL)
+func showHelpAndExit() {
+	flag.PrintDefaults()
+	os.Exit(1)
 }
 
 func main() {
-	fmt.Println(cliArgs)
-
 	if cliArgs.cmd == "" {
-		flag.PrintDefaults()
-		os.Exit(1)
+		showHelpAndExit()
 	}
 
 	svcCfg := config.Load()
@@ -59,9 +46,28 @@ func main() {
 		setup.SetLogLevel(svcCfg.StringParam(config.LogLevel).Value())
 	})
 
+	oauthClient := oauth.NewGoogleOAuth(oauth.WithClientSecrets(
+		svcCfg.StringParam(config.GoogleClientID).Value(),
+		svcCfg.StringParam(config.GoogleClientSecret).Value(),
+	))
+
 	switch cliArgs.cmd {
 	case "auth-url":
-		printAuthUrl(svcCfg.StringParam(config.GoogleClientID).Value())
+		codeGrantURL := oauthClient.BuildCodeGrantURL()
+		fmt.Println("Paste url below to browser and follow instructions")
+		fmt.Println("Then use exchange-code action")
+		fmt.Println(codeGrantURL)
+	case "authorize-code":
+		if cliArgs.authorizationCode == "" {
+			showHelpAndExit()
+		}
+		accessToken, err := oauthClient.PerformAuthCodeExchangeFlow(
+			context.Background(),
+			cliArgs.authorizationCode)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(accessToken)
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
