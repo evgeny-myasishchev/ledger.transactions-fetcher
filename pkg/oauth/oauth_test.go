@@ -1,11 +1,16 @@
 package oauth
 
 import (
+	"context"
 	"fmt"
+	"math/rand"
+	"net/url"
 	"testing"
+	"time"
+
+	"gopkg.in/h2non/gock.v1"
 
 	"github.com/bxcodec/faker/v3"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,6 +42,80 @@ func Test_googleOAuthClient_BuildCodeGrantURL(t *testing.T) {
 			c := NewGoogleOAuth(WithClientSecrets(tt.fields.clientID, ""))
 			got := c.BuildCodeGrantURL()
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+	type fields struct {
+		clientID     string
+		clientSecret string
+	}
+	type args struct {
+		code string
+	}
+	type testCase struct {
+		name   string
+		fields fields
+		args   args
+		assert func(t *testing.T, got *AccessToken)
+	}
+	tests := []func() testCase{
+		func() testCase {
+			code := faker.Word()
+			clientID := faker.Word()
+			clientSecret := faker.Word()
+			want := AccessToken{
+				AccessToken:  "at-" + faker.Word(),
+				RefreshToken: "rt-" + faker.Word(),
+				IDToken:      "id-" + faker.Word(),
+				ExpiresIn:    rand.Uint32(),
+			}
+			form := url.Values{}
+			form.Add("code", code)
+			form.Add("grant_type", "authorization_code")
+			form.Add("redirect_uri", "urn:ietf:wg:oauth:2.0:oob")
+			form.Add("client_id", clientID)
+			form.Add("client_secret", clientSecret)
+			gock.New("https://www.googleapis.com").
+				Post("/oauth2/v4/token").
+				MatchHeader("content-type", "application/x-www-form-urlencoded").
+				BodyString(form.Encode()).
+				Reply(200).
+				BodyString(fmt.Sprintf(`{
+					"access_token": "%v",
+					"expires_in": %v,
+					"refresh_token": "%v",
+					"id_token": "%v"
+				}`, want.AccessToken, want.ExpiresIn, want.RefreshToken, want.IDToken))
+			return testCase{
+				name:   "get access token",
+				fields: fields{clientID: clientID, clientSecret: clientSecret},
+				args:   args{code: code},
+				assert: func(t *testing.T, got *AccessToken) {
+					if !assert.Equal(t, got, &want) {
+						return
+					}
+					if !assert.True(t, gock.IsDone()) {
+						return
+					}
+				},
+			}
+		},
+	}
+	for _, tt := range tests {
+		tt := tt()
+		t.Run(tt.name, func(t *testing.T) {
+			c := Client(&googleOAuthClient{
+				clientID:     tt.fields.clientID,
+				clientSecret: tt.fields.clientSecret,
+			})
+			got, err := c.PerformAuthCodeExchangeFlow(context.Background(), tt.args.code)
+			if !assert.NoError(t, err) {
+				return
+			}
+			tt.assert(t, got)
 		})
 	}
 }
