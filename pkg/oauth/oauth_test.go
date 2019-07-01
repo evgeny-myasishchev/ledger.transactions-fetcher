@@ -1,17 +1,19 @@
 package oauth
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/url"
 	"testing"
 	"time"
 
-	"gopkg.in/h2non/gock.v1"
-
 	"github.com/bxcodec/faker/v3"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
 )
 
 func Test_googleOAuthClient_BuildCodeGrantURL(t *testing.T) {
@@ -116,6 +118,60 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 				return
 			}
 			tt.assert(t, got)
+		})
+	}
+}
+
+func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
+	type fields struct {
+		IDToken string
+	}
+	type testCase struct {
+		name   string
+		fields fields
+		want   *IDTokenDetails
+	}
+
+	tests := []func() testCase{
+		func() testCase {
+			email := faker.Email()
+			expires := faker.UnixTime()
+			idToken := map[string]interface{}{
+				"email": email,
+				"exp":   expires,
+			}
+
+			tokenData := bytes.Buffer{}
+			tokenData.WriteString("header.")
+			err := json.
+				NewEncoder(base64.NewEncoder(base64.StdEncoding, &tokenData)).
+				Encode(idToken)
+			if !assert.NoError(t, err) {
+				panic(err)
+			}
+			tokenData.WriteString(".footer")
+
+			return testCase{
+				name:   "correct jwt token",
+				fields: fields{IDToken: tokenData.String()},
+				want: &IDTokenDetails{
+					Email:   email,
+					Expires: expires,
+				},
+			}
+		},
+	}
+	for _, tt := range tests {
+		tt := tt()
+		t.Run(tt.name, func(t *testing.T) {
+			at := &AccessToken{
+				IDToken: tt.fields.IDToken,
+			}
+			got, err := at.ExtractIDTokenDetails()
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

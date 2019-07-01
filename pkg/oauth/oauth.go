@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,8 @@ var logger = diag.CreateLogger()
 
 // IDTokenDetails represents details related to ID token
 type IDTokenDetails struct {
+	Email   string `json:"email"`
+	Expires int64  `json:"exp"`
 }
 
 // AccessToken represents access token data
@@ -27,7 +30,16 @@ type AccessToken struct {
 
 // ExtractIDTokenDetails will decode an ID token and get it's details
 func (at *AccessToken) ExtractIDTokenDetails() (*IDTokenDetails, error) {
-	panic("Not implemented")
+	parts := strings.Split(at.IDToken, ".")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("Unexpected ID token structure. Should have 3 segments, got: %v", len(parts))
+	}
+	decoder := json.NewDecoder(base64.NewDecoder(base64.StdEncoding, strings.NewReader(parts[1])))
+	var details IDTokenDetails
+	if err := decoder.Decode(&details); err != nil {
+		return nil, err
+	}
+	return &details, nil
 }
 
 // Client is an oauth client abstraction
