@@ -13,12 +13,21 @@ import (
 
 var logger = diag.CreateLogger()
 
+// IDTokenDetails represents details related to ID token
+type IDTokenDetails struct {
+}
+
 // AccessToken represents access token data
 type AccessToken struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	IDToken      string `json:"id_token"`
 	ExpiresIn    uint32 `json:"expires_in"`
+}
+
+// ExtractIDTokenDetails will decode an ID token and get it's details
+func (at *AccessToken) ExtractIDTokenDetails() (*IDTokenDetails, error) {
+	panic("Not implemented")
 }
 
 // Client is an oauth client abstraction

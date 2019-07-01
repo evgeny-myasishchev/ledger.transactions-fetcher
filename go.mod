@@ -9,6 +9,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kr/pty v1.1.5 // indirect
+	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mgechev/revive v0.0.0-20190623212432-5969b4c5983b
 	github.com/ogier/pflag v0.0.1 // indirect
 	github.com/satori/go.uuid v1.2.0

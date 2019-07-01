@@ -12,7 +12,7 @@ GIT_HASH = $(shell git rev-parse HEAD)
 GIT_REF = $(shell git branch | grep \\* | cut -d ' ' -f2)
 GIT_URL = $(shell git config --get remote.origin.url)
 
-INSTALL_ENV = CGO_ENABLED=0 GO111MODULE=on
+INSTALL_ENV = CGO_ENABLED=1 GO111MODULE=on
 INSTALL_FLAGS = -installsuffix "static" -ldflags "\
 	-X $(shell go list -m)/pkg/version.AppName=${SERVICE_NAME}\
 	-X $(shell go list -m)/pkg/version.Version=${VERSION}\
