@@ -1,15 +1,14 @@
 package oauth
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/url"
 	"testing"
 	"time"
+
+	tst "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/internal/testing"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/stretchr/testify/assert"
@@ -141,19 +140,14 @@ func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
 				"exp":   expires,
 			}
 
-			tokenData := bytes.Buffer{}
-			tokenData.WriteString("header.")
-			err := json.
-				NewEncoder(base64.NewEncoder(base64.StdEncoding, &tokenData)).
-				Encode(idToken)
-			if !assert.NoError(t, err) {
+			tokenString, err := tst.EncodeUnsignedJWT(t, idToken)
+			if err != nil {
 				panic(err)
 			}
-			tokenData.WriteString(".footer")
 
 			return testCase{
 				name:   "correct jwt token",
-				fields: fields{IDToken: tokenData.String()},
+				fields: fields{IDToken: tokenString},
 				want: &IDTokenDetails{
 					Email:   email,
 					Expires: expires,
