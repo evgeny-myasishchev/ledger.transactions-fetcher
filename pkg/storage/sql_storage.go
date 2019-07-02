@@ -58,6 +58,20 @@ func (s *sqlStorage) GetAccessTokenByEmail(userEmail string) (*oauth.AccessToken
 }
 
 func (s *sqlStorage) SaveAccessToken(token *oauth.AccessToken) error {
+	idToken, err := token.ExtractIDTokenDetails()
+	if err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`
+	INSERT INTO users(email, access_token, refresh_token, id_token, expires_in)
+	VALUES($1, $2, $3, $4, $5)
+	ON CONFLICT(email) DO UPDATE 
+	SET access_token=$2, refresh_token=$3, id_token=$4, expires_in=$5
+	`,
+		idToken.Email, token.AccessToken, token.RefreshToken,
+		token.IDToken, token.ExpiresIn); err != nil {
+		return err
+	}
 	return nil
 }
 
