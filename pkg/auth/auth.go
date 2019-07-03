@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
 
@@ -16,6 +18,7 @@ type Service interface {
 
 type service struct {
 	oauthClient OAuthClient
+	storage     dal.Storage
 }
 
 func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
@@ -33,6 +36,13 @@ type ServiceOpt func(*service)
 func WithOAuthClient(client OAuthClient) ServiceOpt {
 	return func(svc *service) {
 		svc.oauthClient = client
+	}
+}
+
+// WithStorage will init the service with storage
+func WithStorage(storage dal.Storage) ServiceOpt {
+	return func(svc *service) {
+		svc.storage = storage
 	}
 }
 

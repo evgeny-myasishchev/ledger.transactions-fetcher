@@ -3,32 +3,40 @@ package auth
 import (
 	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 )
 
-func Test_service_RegisterUser(t *testing.T) {
+func Test_Service_RegisterUser(t *testing.T) {
 	type fields struct {
 		oauthClient OAuthClient
+		storage     dal.Storage
 	}
 	type args struct {
-		ctx       context.Context
 		oauthCode string
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
+	type testCase struct {
+		name   string
+		fields fields
+		args   args
+		assert func(t *testing.T)
+	}
+	tests := []func() testCase{
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
+		tt := tt()
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &service{
-				oauthClient: tt.fields.oauthClient,
+			svc := NewService(
+				WithOAuthClient(tt.fields.oauthClient),
+				WithStorage(tt.fields.storage),
+			)
+			if err := svc.RegisterUser(context.TODO(), tt.args.oauthCode); !assert.NoError(t, err) {
+				return
 			}
-			if err := svc.RegisterUser(tt.args.ctx, tt.args.oauthCode); (err != nil) != tt.wantErr {
-				t.Errorf("service.RegisterUser() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			tt.assert(t)
 		})
 	}
 }
