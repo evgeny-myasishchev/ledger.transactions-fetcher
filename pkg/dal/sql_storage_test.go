@@ -1,4 +1,4 @@
-package storage
+package dal
 
 import (
 	"context"
@@ -10,16 +10,10 @@ import (
 	"github.com/bxcodec/faker/v3"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/oauth"
 )
 
 func init() {
 	rand.Seed(time.Now().Unix())
-}
-
-type fakeAccessToken struct {
-	oauth.AccessToken
 }
 
 func randomAccessToken() *AuthTokenDTO {

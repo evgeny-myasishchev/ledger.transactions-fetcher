@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/oauth"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/config"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
@@ -46,7 +46,7 @@ func main() {
 		setup.SetLogLevel(svcCfg.StringParam(config.LogLevel).Value())
 	})
 
-	oauthClient := oauth.NewGoogleOAuth(oauth.WithClientSecrets(
+	oauthClient := auth.NewGoogleOAuthClient(auth.WithClientSecrets(
 		svcCfg.StringParam(config.GoogleClientID).Value(),
 		svcCfg.StringParam(config.GoogleClientSecret).Value(),
 	))
