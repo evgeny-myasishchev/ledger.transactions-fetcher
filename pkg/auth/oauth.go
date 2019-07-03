@@ -8,11 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
-
-var logger = diag.CreateLogger()
 
 // IDTokenDetails represents details related to ID token
 type IDTokenDetails struct {
