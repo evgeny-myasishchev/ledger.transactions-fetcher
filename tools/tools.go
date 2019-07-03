@@ -7,5 +7,6 @@ package tools
 
 import (
 	_ "github.com/cespare/reflex"
+	_ "github.com/golang/mock/gomock"
 	_ "github.com/mgechev/revive"
 )

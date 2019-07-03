@@ -13,6 +13,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 COPY go.mod go.sum /go/src/
 RUN go mod download 
 RUN go install github.com/mgechev/revive &&\
+    go install github.com/golang/mock/gomock &&\
     go install github.com/cespare/reflex
 
 COPY . /go/src/

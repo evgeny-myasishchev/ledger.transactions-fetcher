@@ -6,6 +6,7 @@ require (
 	github.com/bxcodec/faker/v3 v3.1.0
 	github.com/cespare/reflex v0.2.0
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
+	github.com/golang/mock v1.3.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kr/pty v1.1.5 // indirect
