@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
@@ -22,7 +23,7 @@ type service struct {
 }
 
 func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
-	panic("not implemented")
+	return errors.New("Not implemented")
 }
 
 func (svc *service) FetchAuthToken(ctx context.Context, email string) (string, error) {
