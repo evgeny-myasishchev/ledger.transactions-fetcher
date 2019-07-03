@@ -1,12 +1,17 @@
 package storage
 
-import (
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/oauth"
-)
+import "context"
+
+// AuthTokenDTO is a DTO to store user auth token
+type AuthTokenDTO struct {
+	Email        string
+	IDToken      string
+	RefreshToken string
+}
 
 // Storage is a persistance layer
 type Storage interface {
-	Setup() error
-	GetAccessTokenByEmail(userEmail string) (*oauth.AccessToken, error)
-	SaveAccessToken(token *oauth.AccessToken) error
+	Setup(ctx context.Context) error
+	GetAuthTokenByEmail(ctx context.Context, email string) (*AuthTokenDTO, error)
+	SaveAuthToken(ctx context.Context, token *AuthTokenDTO) error
 }

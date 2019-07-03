@@ -1,4 +1,4 @@
-package oauth
+package auth
 
 import (
 	"context"
@@ -22,10 +22,8 @@ type IDTokenDetails struct {
 
 // AccessToken represents access token data
 type AccessToken struct {
-	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	IDToken      string `json:"id_token"`
-	ExpiresIn    uint32 `json:"expires_in"`
 }
 
 // ExtractIDTokenDetails will decode an ID token and get it's details
@@ -42,8 +40,8 @@ func (at *AccessToken) ExtractIDTokenDetails() (*IDTokenDetails, error) {
 	return &details, nil
 }
 
-// Client is an oauth client abstraction
-type Client interface {
+// OAuthClient is an oauth client abstraction
+type OAuthClient interface {
 	BuildCodeGrantURL() string
 	PerformAuthCodeExchangeFlow(ctx context.Context, code string) (*AccessToken, error)
 }
@@ -97,8 +95,8 @@ func WithClientSecrets(clientID string, clientSecret string) GoogleOAuthOpt {
 	}
 }
 
-// NewGoogleOAuth creates an instance of a google OAuth client
-func NewGoogleOAuth(opts ...GoogleOAuthOpt) Client {
+// NewGoogleOAuthClient creates an instance of a google OAuth client
+func NewGoogleOAuthClient(opts ...GoogleOAuthOpt) OAuthClient {
 	client := &googleOAuthClient{}
 	for _, opt := range opts {
 		opt(client)

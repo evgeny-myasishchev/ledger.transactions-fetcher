@@ -1,10 +1,9 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/oauth"
 
 	// This has to be here to let go mods work work
 	_ "github.com/mattn/go-sqlite3"
@@ -14,25 +13,23 @@ type sqlStorage struct {
 	db *sql.DB
 }
 
-func (s *sqlStorage) Setup() error {
+func (s *sqlStorage) Setup(ctx context.Context) error {
 	_, err := s.db.Exec(`
 CREATE TABLE users(
 	email nvarchar(30) NOT NULL PRIMARY KEY,
-	access_token NTEXT NOT NULL,
 	refresh_token NTEXT NOT NULL,
-	id_token NTEXT NOT NULL,
-	expires_in int NOT NULL
+	id_token NTEXT NOT NULL
 )
 `)
 	return err
 }
 
 // TODO: Add context (for others as well)
-func (s *sqlStorage) GetAccessTokenByEmail(userEmail string) (*oauth.AccessToken, error) {
+func (s *sqlStorage) GetAuthTokenByEmail(ctx context.Context, email string) (*AuthTokenDTO, error) {
 	res, err := s.db.Query(`
 	SELECT 
-		access_token, refresh_token, id_token, expires_in
-	FROM USERS WHERE email = $1`, userEmail)
+		email, id_token, refresh_token
+	FROM USERS WHERE email = $1`, email)
 	if err != nil {
 		return nil, err
 	}
@@ -42,34 +39,28 @@ func (s *sqlStorage) GetAccessTokenByEmail(userEmail string) (*oauth.AccessToken
 		if res.Err() != nil {
 			return nil, res.Err()
 		}
-		return nil, fmt.Errorf("Unknown user: %v", userEmail)
+		return nil, fmt.Errorf("Unknown user: %v", email)
 	}
 
-	result := &oauth.AccessToken{}
+	result := &AuthTokenDTO{}
 	if err := res.Scan(
-		&result.AccessToken,
-		&result.RefreshToken,
+		&result.Email,
 		&result.IDToken,
-		&result.ExpiresIn,
+		&result.RefreshToken,
 	); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (s *sqlStorage) SaveAccessToken(token *oauth.AccessToken) error {
-	idToken, err := token.ExtractIDTokenDetails()
-	if err != nil {
-		return err
-	}
+func (s *sqlStorage) SaveAuthToken(ctx context.Context, token *AuthTokenDTO) error {
 	if _, err := s.db.Exec(`
-	INSERT INTO users(email, access_token, refresh_token, id_token, expires_in)
-	VALUES($1, $2, $3, $4, $5)
+	INSERT INTO users(email, id_token, refresh_token)
+	VALUES($1, $2, $3)
 	ON CONFLICT(email) DO UPDATE 
-	SET access_token=$2, refresh_token=$3, id_token=$4, expires_in=$5
+	SET id_token=$2, refresh_token=$3
 	`,
-		idToken.Email, token.AccessToken, token.RefreshToken,
-		token.IDToken, token.ExpiresIn); err != nil {
+		token.Email, token.IDToken, token.RefreshToken); err != nil {
 		return err
 	}
 	return nil

@@ -1,4 +1,4 @@
-package oauth
+package auth
 
 import (
 	"context"
@@ -40,7 +40,7 @@ func Test_googleOAuthClient_BuildCodeGrantURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewGoogleOAuth(WithClientSecrets(tt.fields.clientID, ""))
+			c := NewGoogleOAuthClient(WithClientSecrets(tt.fields.clientID, ""))
 			got := c.BuildCodeGrantURL()
 			assert.Equal(t, tt.want, got)
 		})
@@ -68,10 +68,8 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 			clientID := faker.Word()
 			clientSecret := faker.Word()
 			want := AccessToken{
-				AccessToken:  "at-" + faker.Word(),
 				RefreshToken: "rt-" + faker.Word(),
 				IDToken:      "id-" + faker.Word(),
-				ExpiresIn:    rand.Uint32(),
 			}
 			form := url.Values{}
 			form.Add("code", code)
@@ -85,11 +83,11 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 				BodyString(form.Encode()).
 				Reply(200).
 				BodyString(fmt.Sprintf(`{
-					"access_token": "%v",
-					"expires_in": %v,
+					"access_token": "not-important",
+					"expires_in": 123,
 					"refresh_token": "%v",
 					"id_token": "%v"
-				}`, want.AccessToken, want.ExpiresIn, want.RefreshToken, want.IDToken))
+				}`, want.RefreshToken, want.IDToken))
 			return testCase{
 				name:   "get access token",
 				fields: fields{clientID: clientID, clientSecret: clientSecret},
@@ -108,7 +106,7 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt()
 		t.Run(tt.name, func(t *testing.T) {
-			c := Client(&googleOAuthClient{
+			c := OAuthClient(&googleOAuthClient{
 				clientID:     tt.fields.clientID,
 				clientSecret: tt.fields.clientSecret,
 			})
