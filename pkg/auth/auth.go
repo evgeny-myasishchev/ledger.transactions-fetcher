@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
@@ -23,7 +22,19 @@ type service struct {
 }
 
 func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
-	return errors.New("Not implemented")
+	accessToken, err := svc.oauthClient.PerformAuthCodeExchangeFlow(ctx, oauthCode)
+	if err != nil {
+		return nil
+	}
+	idTokenDetails, err := accessToken.ExtractIDTokenDetails()
+	if err != nil {
+		return nil
+	}
+	return svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{
+		Email:        idTokenDetails.Email,
+		IDToken:      accessToken.IDToken,
+		RefreshToken: accessToken.RefreshToken,
+	})
 }
 
 func (svc *service) FetchAuthToken(ctx context.Context, email string) (string, error) {
