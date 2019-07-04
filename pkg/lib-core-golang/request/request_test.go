@@ -13,7 +13,7 @@ import (
 	"github.com/bxcodec/faker/v3"
 )
 
-func TestSend(t *testing.T) {
+func TestDo(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		req  *http.Request
@@ -31,11 +31,7 @@ func TestSend(t *testing.T) {
 					Reply(200).
 					BodyString(expectedBody)
 
-				req, err := http.NewRequest("GET", url, nil)
-				if !assert.NoError(t, err) {
-					return
-				}
-				resp, err := Send(context.TODO(), req)
+				resp, err := Do(context.TODO(), Get(url))
 				if !assert.NoError(t, err) {
 					return
 				}
