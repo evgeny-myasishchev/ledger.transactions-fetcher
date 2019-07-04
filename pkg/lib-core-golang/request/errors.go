@@ -1,4 +1,4 @@
-package errors
+package request
 
 import (
 	"encoding/json"
@@ -37,6 +37,15 @@ func NewHTTPError(statusCode int, message string) error {
 		StatusCode: statusCode,
 		Status:     http.StatusText(statusCode),
 		Message:    message,
+	}
+}
+
+// NewHTTPErrorFromResponse - creates a generic http error
+func NewHTTPErrorFromResponse(res *http.Response) error {
+	// TODO: Try to deserialize, maybe it's an http error
+	return HTTPError{
+		StatusCode: res.StatusCode,
+		Status:     res.Status,
 	}
 }
 

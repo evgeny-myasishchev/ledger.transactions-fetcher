@@ -2,8 +2,10 @@ package request
 
 import (
 	"context"
+	"math/rand"
 	"net/http"
 	"testing"
+	"time"
 
 	"gopkg.in/h2non/gock.v1"
 
@@ -13,6 +15,8 @@ import (
 )
 
 func TestDo(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
 	type args struct {
 		ctx  context.Context
 		req  *http.Request
@@ -46,6 +50,36 @@ func TestDo(t *testing.T) {
 					return
 				}
 				assert.Equal(t, expectedBody, string(actualBody))
+			}
+		},
+
+		func() (string, tcFn) {
+			return "should fail with http err if status code is > 299", func(t *testing.T) {
+				url := faker.URL()
+				expectedBody := faker.Sentence()
+
+				status := 299 + rand.Intn(300)
+
+				gock.New(url).
+					Get("/").
+					Reply(status).
+					BodyString(expectedBody)
+
+				resp := Do(context.TODO(), Get(url))
+				if !assert.True(t, gock.IsDone(), "No request performed") {
+					return
+				}
+
+				_, err := resp()
+				if !assert.Error(t, err) {
+					return
+				}
+
+				httpErr, ok := err.(HTTPError)
+				if !assert.True(t, ok, "Expected http err but got something else:", err) {
+					return
+				}
+				assert.Equal(t, status, httpErr.StatusCode)
 			}
 		},
 

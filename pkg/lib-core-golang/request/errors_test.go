@@ -1,4 +1,4 @@
-package errors
+package request
 
 import (
 	"errors"

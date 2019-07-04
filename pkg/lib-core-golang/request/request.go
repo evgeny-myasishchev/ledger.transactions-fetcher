@@ -48,6 +48,9 @@ func (f ResFactory) ReadAll() ([]byte, error) {
 
 func newResFactory(res *http.Response, err error) ResFactory {
 	return func() (*http.Response, error) {
+		if res.StatusCode >= 300 {
+			return nil, NewHTTPErrorFromResponse(res)
+		}
 		return res, err
 	}
 }
