@@ -2,6 +2,7 @@ package request
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
@@ -32,14 +33,33 @@ func Get(url string) ReqFactory {
 	}
 }
 
+// ResFactory is a function that holds a request result with a response or error
+type ResFactory func() (*http.Response, error)
+
+// ReadAll will read entire body as a byte array
+func (f ResFactory) ReadAll() ([]byte, error) {
+	res, err := f()
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	return ioutil.ReadAll(res.Body)
+}
+
+func newResFactory(res *http.Response, err error) ResFactory {
+	return func() (*http.Response, error) {
+		return res, err
+	}
+}
+
 // Do will send the request. Will fail if response status is other than 2xx
-func Do(ctx context.Context, factory ReqFactory, opts ...SendOpt) (*http.Response, error) {
+func Do(ctx context.Context, factory ReqFactory, opts ...SendOpt) ResFactory {
 	httpClient := &http.Client{
 		Transport: http.DefaultTransport,
 	}
 	req, err := factory()
 	if err != nil {
-		return nil, err
+		return newResFactory(nil, err)
 	}
-	return httpClient.Do(req)
+	return newResFactory(httpClient.Do(req))
 }

@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -31,18 +30,18 @@ func TestDo(t *testing.T) {
 					Reply(200).
 					BodyString(expectedBody)
 
-				resp, err := Do(context.TODO(), Get(url))
-				if !assert.NoError(t, err) {
-					return
-				}
+				resp := Do(context.TODO(), Get(url))
 				if !assert.True(t, gock.IsDone(), "No request performed") {
 					return
 				}
-				defer resp.Body.Close()
 
-				assert.Equal(t, 200, resp.StatusCode)
+				respVal, err := resp()
+				if !assert.NoError(t, err) {
+					return
+				}
+				assert.Equal(t, 200, respVal.StatusCode)
 
-				actualBody, err := ioutil.ReadAll(resp.Body)
+				actualBody, err := resp.ReadAll()
 				if !assert.NoError(t, err) {
 					return
 				}
