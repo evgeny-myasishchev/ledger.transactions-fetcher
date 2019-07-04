@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth"
 
@@ -20,7 +23,7 @@ var cliArgs struct {
 }
 
 func init() {
-	flag.StringVar(&cliArgs.cmd, "cmd", "", "Command to run. Available commands: auth-url, authorize-code")
+	flag.StringVar(&cliArgs.cmd, "cmd", "", "Command to run. Available commands: auth-url, register-user")
 	flag.StringVar(&cliArgs.authorizationCode, "code", "", "Authorization code obtained by following auth-url instruction")
 
 	flag.Parse()
@@ -36,6 +39,8 @@ func main() {
 		showHelpAndExit()
 	}
 
+	ctx := context.Background()
+
 	svcCfg := config.Load()
 
 	diag.SetupLoggingSystem(func(setup diag.LoggingSystemSetup) {
@@ -47,23 +52,38 @@ func main() {
 		svcCfg.StringParam(config.GoogleClientSecret).Value(),
 	))
 
+	driver := svcCfg.StringParam(config.StorageDriver).Value()
+	dsn := svcCfg.StringParam(config.StorageDSN).Value()
+
+	db, err := sql.Open(driver, dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	storage, err := dal.NewSQLStorage(dal.WithSQLDb(db))
+	if err != nil {
+		panic(err)
+	}
+
+	authSvc := auth.NewService(
+		auth.WithOAuthClient(oauthClient),
+		auth.WithStorage(storage),
+	)
+
 	switch cliArgs.cmd {
 	case "auth-url":
 		codeGrantURL := oauthClient.BuildCodeGrantURL()
 		fmt.Println("Paste url below to browser and follow instructions")
 		fmt.Println("Then use exchange-code action")
 		fmt.Println(codeGrantURL)
-	case "authorize-code":
+	case "register-user":
 		if cliArgs.authorizationCode == "" {
 			showHelpAndExit()
 		}
-		accessToken, err := oauthClient.PerformAuthCodeExchangeFlow(
-			context.Background(),
-			cliArgs.authorizationCode)
-		if err != nil {
+		if err := authSvc.RegisterUser(ctx, cliArgs.authorizationCode); err != nil {
 			panic(err)
 		}
-		fmt.Println(accessToken)
+		logger.Info(ctx, "User registered")
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
