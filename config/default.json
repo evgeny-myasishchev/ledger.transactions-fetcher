@@ -5,5 +5,9 @@
     "runtimeEnv": "AWS",
     "pbanua2x": {
         "api": "https://api.privatbank.ua/p24api/rest_fiz"
+    },
+    "storage": {
+        "driver": "sqlite3",
+        "data-source-name": "db/fetcher.db"
     }
 }

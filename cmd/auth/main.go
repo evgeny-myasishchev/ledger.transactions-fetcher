@@ -20,10 +20,6 @@ var cliArgs struct {
 }
 
 func init() {
-	const (
-		defaultGopher = "pocket"
-		usage         = "the variety of gopher"
-	)
 	flag.StringVar(&cliArgs.cmd, "cmd", "", "Command to run. Available commands: auth-url, authorize-code")
 	flag.StringVar(&cliArgs.authorizationCode, "code", "", "Authorization code obtained by following auth-url instruction")
 

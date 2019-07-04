@@ -20,6 +20,9 @@ var (
 
 	GoogleClientID     = localParams.NewParam("google/client-id").String()
 	GoogleClientSecret = localParams.NewParam("google/client-secret").String()
+
+	StorageDriver = localParams.NewParam("storage/driver").String()
+	StorageDSN    = localParams.NewParam("storage/data-source-name").String()
 )
 
 // Load will load and initialize config
