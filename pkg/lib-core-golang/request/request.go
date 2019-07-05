@@ -41,6 +41,15 @@ func flattenAndObfuscate(values map[string][]string, obfuscateKeys ...string) ma
 // ReqFactory is a function that creates an instance of a request
 type ReqFactory func() (*http.Request, error)
 
+// WithHeader injects request header
+func (f ReqFactory) WithHeader(key string, value string) ReqFactory {
+	return func() (*http.Request, error) {
+		req, err := f()
+		req.Header.Add(key, value)
+		return req, err
+	}
+}
+
 // Get creates a new req factory that creates a get request for given url
 func Get(url string) ReqFactory {
 	return func() (*http.Request, error) {
@@ -63,11 +72,17 @@ func (f ResFactory) ReadAll() ([]byte, error) {
 
 func newResFactory(res *http.Response, err error) ResFactory {
 	return func() (*http.Response, error) {
-		if res.StatusCode >= 300 {
+		if res != nil && res.StatusCode >= 300 {
 			return nil, NewHTTPErrorFromResponse(res)
 		}
 		return res, err
 	}
+}
+
+type requestLogger func(req *http.Request) (*http.Response, error)
+
+func (rl requestLogger) RoundTrip(req *http.Request) (*http.Response, error) {
+	return rl(req)
 }
 
 // Do will send the request. Will fail if response status is other than 2xx
@@ -81,33 +96,38 @@ func Do(ctx context.Context, factory ReqFactory, opts ...SendOpt) ResFactory {
 		opt(cfg)
 	}
 	httpClient := &http.Client{
-		Transport: http.DefaultTransport,
+		Transport: requestLogger(func(req *http.Request) (*http.Response, error) {
+			cfg.logger.
+				WithData(diag.MsgData{
+					"protocol": req.URL.Scheme,
+					"url":      req.URL.String(),
+					"qs":       flattenAndObfuscate(req.URL.Query()),
+
+					// TODO: Obfuscate some headers
+					"headers": flattenAndObfuscate(req.Header),
+
+					"method":        req.Method,
+					"contentLength": req.ContentLength,
+				}).
+				Info(ctx, "SEND REQUEST START")
+			res, err := http.DefaultTransport.RoundTrip(req)
+			if res != nil {
+				cfg.logger.
+					WithData(diag.MsgData{
+						"url":           req.URL.String(),
+						"httpStatus":    res.StatusCode,
+						"method":        req.Method,
+						"headers":       flattenAndObfuscate(res.Header),
+						"contentLength": res.ContentLength,
+					}).
+					Info(ctx, "SEND REQUEST COMPLETE")
+			}
+			return res, err
+		}),
 	}
 	req, err := factory()
 	if err != nil {
 		return newResFactory(nil, err)
 	}
-	cfg.logger.
-		WithData(diag.MsgData{
-			"protocol": req.URL.Scheme,
-			"url":      req.URL.String(),
-			"qs":       flattenAndObfuscate(req.URL.Query()),
-
-			// TODO: Obfuscate some headers
-			"headers": flattenAndObfuscate(req.Header),
-
-			"method": req.Method,
-		}).
-		Info(ctx, "SEND REQUEST START")
-	res, err := httpClient.Do(req)
-	cfg.logger.
-		WithData(diag.MsgData{
-			"url":        req.URL.String(),
-			"httpStatus": res.StatusCode,
-			"method":     req.Method,
-
-			// TODO: Res headers
-		}).
-		Info(ctx, "SEND REQUEST COMPLETE")
-	return newResFactory(res, err)
+	return newResFactory(httpClient.Do(req))
 }

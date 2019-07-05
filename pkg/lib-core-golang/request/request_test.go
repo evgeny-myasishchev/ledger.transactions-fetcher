@@ -127,12 +127,21 @@ func TestDo(t *testing.T) {
 				status := 199 + rand.Intn(100)
 				log := newMockLogger()
 
+				reqHeader1 := "header1-" + faker.Word()
+				reqVal1 := "val1-" + faker.Word()
+
+				resHeader1 := "header1-" + faker.Word()
+				resVal1 := "val1-" + faker.Word()
+
 				gock.New(reqURLString).
 					Get("/").
+					MatchHeaders(map[string]string{reqHeader1: reqVal1}).
 					Reply(status).
-					BodyString(expectedBody)
+					BodyString(expectedBody).
+					AddHeader(resHeader1, resVal1)
 
-				reqFactory := Get(reqURLString)
+				reqFactory := Get(reqURLString).
+					WithHeader(reqHeader1, reqVal1)
 				resp := Do(context.TODO(), reqFactory, withLogger(log))
 
 				req, err := reqFactory()
@@ -140,7 +149,7 @@ func TestDo(t *testing.T) {
 					return
 				}
 
-				_, err = resp()
+				res, err := resp()
 				if !assert.NoError(t, err) {
 					return
 				}
@@ -154,18 +163,21 @@ func TestDo(t *testing.T) {
 				assert.Len(t, log.msgDataEntries, 2)
 				assert.Equal(t, "SEND REQUEST START", log.messages[0])
 				assert.Equal(t, diag.MsgData{
-					"protocol": reqURL.Scheme,
-					"url":      reqURLString,
-					"qs":       flattenAndObfuscate(reqURL.Query()),
-					"headers":  flattenAndObfuscate(req.Header),
-					"method":   "GET",
+					"protocol":      reqURL.Scheme,
+					"url":           reqURLString,
+					"qs":            flattenAndObfuscate(reqURL.Query()),
+					"headers":       flattenAndObfuscate(req.Header),
+					"method":        "GET",
+					"contentLength": req.ContentLength,
 				}, log.msgDataEntries[0])
 
 				assert.Equal(t, "SEND REQUEST COMPLETE", log.messages[1])
 				assert.Equal(t, diag.MsgData{
-					"url":        reqURLString,
-					"method":     "GET",
-					"httpStatus": status,
+					"url":           reqURLString,
+					"method":        "GET",
+					"httpStatus":    status,
+					"headers":       flattenAndObfuscate(res.Header),
+					"contentLength": res.ContentLength,
 				}, log.msgDataEntries[1])
 			}
 		},
