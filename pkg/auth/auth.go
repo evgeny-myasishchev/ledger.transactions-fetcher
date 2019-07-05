@@ -24,11 +24,11 @@ type service struct {
 func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 	accessToken, err := svc.oauthClient.PerformAuthCodeExchangeFlow(ctx, oauthCode)
 	if err != nil {
-		return nil
+		return err
 	}
 	idTokenDetails, err := accessToken.ExtractIDTokenDetails()
 	if err != nil {
-		return nil
+		return err
 	}
 	return svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{
 		Email:        idTokenDetails.Email,

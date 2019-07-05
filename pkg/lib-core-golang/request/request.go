@@ -2,9 +2,11 @@ package request
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
@@ -57,6 +59,17 @@ func Get(url string) ReqFactory {
 	}
 }
 
+// PostForm creates a new req factory that creates a post request with form data
+func PostForm(reqURL string, data url.Values) ReqFactory {
+	return func() (*http.Request, error) {
+		req, err := http.NewRequest("POST", reqURL, strings.NewReader(data.Encode()))
+		if req != nil {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		return req, err
+	}
+}
+
 // ResFactory is a function that holds a request result with a response or error
 type ResFactory func() (*http.Response, error)
 
@@ -68,6 +81,16 @@ func (f ResFactory) ReadAll() ([]byte, error) {
 	}
 	defer res.Body.Close()
 	return ioutil.ReadAll(res.Body)
+}
+
+// DecodeJSON will decode response body to a given receiver
+func (f ResFactory) DecodeJSON(receiver interface{}) error {
+	res, err := f()
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	return json.NewDecoder(res.Body).Decode(receiver)
 }
 
 func newResFactory(res *http.Response, err error) ResFactory {

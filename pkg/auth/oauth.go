@@ -5,9 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/request"
 )
 
 // IDTokenDetails represents details related to ID token
@@ -66,15 +67,11 @@ func (c *googleOAuthClient) PerformAuthCodeExchangeFlow(ctx context.Context, cod
 	form.Add("client_id", c.clientID)
 	form.Add("client_secret", c.clientSecret)
 	logger.Debug(ctx, "Exchaning auth code on access token")
-	res, err := http.Post(
-		"https://www.googleapis.com/oauth2/v4/token",
-		"application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
+
+	req := request.PostForm("https://www.googleapis.com/oauth2/v4/token", form)
+	res := request.Do(ctx, req)
 	var accessToken AccessToken
-	if err := json.NewDecoder(res.Body).Decode(&accessToken); err != nil {
+	if err := res.DecodeJSON(&accessToken); err != nil {
 		return nil, err
 	}
 	return &accessToken, nil
