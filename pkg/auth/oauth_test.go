@@ -152,6 +152,18 @@ func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
 				},
 			}
 		},
+		func() testCase {
+			tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Imtmb3ZrZG8zMmkzOTBAbnZvZGtxLmdqbCIsImV4cCI6MzA0ODEzMzA3NX0.HrYUdClKf3NnMhWOuILHf41nDd-1emuSH2ayNBEY3K4"
+
+			return testCase{
+				name:   "real token",
+				fields: fields{IDToken: tokenString},
+				want: &IDTokenDetails{
+					Email:   "kfovkdo32i390@nvodkq.gjl",
+					Expires: 3048133075,
+				},
+			}
+		},
 	}
 	for _, tt := range tests {
 		tt := tt()

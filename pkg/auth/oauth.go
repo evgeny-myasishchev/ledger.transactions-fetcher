@@ -30,7 +30,7 @@ func (at *AccessToken) ExtractIDTokenDetails() (*IDTokenDetails, error) {
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("Unexpected ID token structure. Should have 3 segments, got: %v", len(parts))
 	}
-	decoder := json.NewDecoder(base64.NewDecoder(base64.StdEncoding, strings.NewReader(parts[1])))
+	decoder := json.NewDecoder(base64.NewDecoder(base64.RawURLEncoding, strings.NewReader(parts[1])))
 	var details IDTokenDetails
 	if err := decoder.Decode(&details); err != nil {
 		return nil, err
