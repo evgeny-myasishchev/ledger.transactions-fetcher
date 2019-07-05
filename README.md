@@ -20,3 +20,11 @@ Register the user:
 go run cmd/auth/*.go -cmd register-user -code "XXX"
 ```
 Where XXX is a code obtained with a previous step
+
+## Dev
+
+### Generated mocks
+
+Some mocks are generated with `mockgen`. Generate commands are added to Makefile (see mockgen target). Please add new mocks there.
+
+Make sure to regenerate mocks if updating interfaces (e.g make mockgen).

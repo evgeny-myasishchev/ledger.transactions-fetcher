@@ -24,6 +24,10 @@ INSTALL_FLAGS = -installsuffix "static" -ldflags "\
 DEV_IMAGE = dev/${SERVICE_NAME}:latest
 PROD_IMAGE = ${REGISTRY}/${SERVICE_NAME})
 
+mockgen:
+	mockgen -package auth -source pkg/dal/storage.go -destination pkg/auth/storage_mock_test.go Storage
+	mockgen -self_package github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth -package auth -destination pkg/auth/oauth_client_mock_test.go github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth OAuthClient
+
 all: build
 
 lint:
