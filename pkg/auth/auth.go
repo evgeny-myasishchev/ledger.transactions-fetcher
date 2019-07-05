@@ -22,6 +22,7 @@ type service struct {
 }
 
 func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
+	logger.Debug(ctx, "Submitting oauth code and exchange it for token")
 	accessToken, err := svc.oauthClient.PerformAuthCodeExchangeFlow(ctx, oauthCode)
 	if err != nil {
 		return err
@@ -30,6 +31,7 @@ func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 	if err != nil {
 		return err
 	}
+	logger.Debug(ctx, "Got token for user %v, saving", idTokenDetails.Email)
 	return svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{
 		Email:        idTokenDetails.Email,
 		IDToken:      accessToken.IDToken,
