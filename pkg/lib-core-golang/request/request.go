@@ -135,14 +135,24 @@ func Do(ctx context.Context, factory ReqFactory, opts ...SendOpt) ResFactory {
 				Info(ctx, "SEND REQUEST START")
 			res, err := http.DefaultTransport.RoundTrip(req)
 			if res != nil {
+				msgData := diag.MsgData{
+					"url":           req.URL.String(),
+					"httpStatus":    res.StatusCode,
+					"method":        req.Method,
+					"headers":       flattenAndObfuscate(res.Header),
+					"contentLength": res.ContentLength,
+				}
+				if res.StatusCode >= 300 {
+					defer res.Body.Close()
+					if body, err := ioutil.ReadAll(res.Body); err != nil {
+						cfg.logger.WithError(err).Error(ctx, "Failed to read response body")
+					} else {
+						msgData["body"] = string(body)
+					}
+
+				}
 				cfg.logger.
-					WithData(diag.MsgData{
-						"url":           req.URL.String(),
-						"httpStatus":    res.StatusCode,
-						"method":        req.Method,
-						"headers":       flattenAndObfuscate(res.Header),
-						"contentLength": res.ContentLength,
-					}).
+					WithData(msgData).
 					Info(ctx, "SEND REQUEST COMPLETE")
 			}
 			return res, err

@@ -181,7 +181,33 @@ func TestDo(t *testing.T) {
 				}, log.msgDataEntries[1])
 			}
 		},
+		func() (string, tcFn) {
+			return "should log resp body if failed", func(t *testing.T) {
+				reqURLString := faker.URL() + fmt.Sprintf("?qs1=%v&qs2=%v", faker.Word(), faker.Word())
+				errorBody := faker.Sentence()
 
+				status := 299 + rand.Intn(100)
+				log := newMockLogger()
+
+				gock.New(reqURLString).
+					Get("/").
+					Reply(status).
+					BodyString(errorBody)
+
+				resp := Do(context.TODO(), Get(reqURLString), withLogger(log))
+
+				_, err := resp()
+				if !assert.Error(t, err) {
+					return
+				}
+
+				assert.Len(t, log.messages, 2)
+				assert.Len(t, log.msgDataEntries, 2)
+				assert.Equal(t, "SEND REQUEST COMPLETE", log.messages[1])
+
+				assert.Equal(t, log.msgDataEntries[1]["body"], errorBody)
+			}
+		},
 		// TODO: Fail with http err if no 200
 	}
 	for _, tt := range tests {
