@@ -13,6 +13,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mgechev/revive v0.0.0-20190623212432-5969b4c5983b
 	github.com/ogier/pflag v0.0.1 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.3.0

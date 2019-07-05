@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
@@ -25,11 +27,11 @@ func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 	logger.Debug(ctx, "Submitting oauth code and exchange it for token")
 	accessToken, err := svc.oauthClient.PerformAuthCodeExchangeFlow(ctx, oauthCode)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to perform oauth code flow")
 	}
 	idTokenDetails, err := accessToken.ExtractIDTokenDetails()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to extract ID token")
 	}
 	logger.Debug(ctx, "Got token for user %v, saving", idTokenDetails.Email)
 	return svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{

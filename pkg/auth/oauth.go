@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/request"
+	"github.com/pkg/errors"
 )
 
 // IDTokenDetails represents details related to ID token
@@ -72,7 +73,7 @@ func (c *googleOAuthClient) PerformAuthCodeExchangeFlow(ctx context.Context, cod
 	res := request.Do(ctx, req)
 	var accessToken AccessToken
 	if err := res.DecodeJSON(&accessToken); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get access token")
 	}
 	return &accessToken, nil
 }
