@@ -53,7 +53,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	data.WriteString(`<test>0</test>`)
 	data.WriteString(`<payment id="">`)
 	data.WriteString(`<prop name="sd" value="` + pbTimeForamt(params.From) + `" />`)
-	data.WriteString(`<prop name="ed" value="` + pbTimeForamt(params.From) + `" />`)
+	data.WriteString(`<prop name="ed" value="` + pbTimeForamt(params.To) + `" />`)
 	data.WriteString(`<prop name="card" value="` + params.BankAccountID + `" />`)
 	data.WriteString(`</payment>`)
 

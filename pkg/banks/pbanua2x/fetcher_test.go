@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"gopkg.in/h2non/gock.v1"
 
@@ -74,7 +75,8 @@ func TestNewFetcher(t *testing.T) {
 			name: "not existing user",
 			args: args{userID: notExistingUser},
 			assert: func(t *testing.T, fetcher banks.Fetcher, err error) {
-				assert.EqualError(t, err, "Config not found, user: "+notExistingUser)
+				cause := errors.Cause(err)
+				assert.EqualError(t, cause, "Config not found, user: "+notExistingUser)
 			},
 		},
 	}
@@ -152,7 +154,7 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					expectedData.WriteString(`<test>0</test>`)
 					expectedData.WriteString(`<payment id="">`)
 					expectedData.WriteString(`<prop name="sd" value="` + pbTimeForamt(fetchParams.From) + `" />`)
-					expectedData.WriteString(`<prop name="ed" value="` + pbTimeForamt(fetchParams.From) + `" />`)
+					expectedData.WriteString(`<prop name="ed" value="` + pbTimeForamt(fetchParams.To) + `" />`)
 					expectedData.WriteString(`<prop name="card" value="` + bankAccountID + `" />`)
 					expectedData.WriteString(`</payment>`)
 
