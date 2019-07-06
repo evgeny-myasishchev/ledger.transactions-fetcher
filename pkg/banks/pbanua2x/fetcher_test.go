@@ -229,8 +229,6 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					if !assert.Error(t, err) {
 						return
 					}
-
-					assert.EqualError(t, err, fmt.Sprintf("Failed to fetch transactions, got %v status", code))
 				},
 			}
 		},
