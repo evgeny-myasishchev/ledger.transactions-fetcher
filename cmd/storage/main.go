@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"os"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/app"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/config"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
@@ -34,30 +35,22 @@ func main() {
 		showHelpAndExit()
 	}
 
-	svcCfg := config.Load()
+	appCfg := config.LoadAppConfig()
 
 	diag.SetupLoggingSystem(func(setup diag.LoggingSystemSetup) {
-		setup.SetLogLevel(svcCfg.StringParam(config.LogLevel).Value())
+		setup.SetLogLevel(appCfg.Log.Level.Value())
 	})
 
-	driver := svcCfg.StringParam(config.StorageDriver).Value()
-	dsn := svcCfg.StringParam(config.StorageDSN).Value()
-
-	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	storage, err := dal.NewSQLStorage(dal.WithSQLDb(db))
-	if err != nil {
-		panic(err)
-	}
+	injector := app.BootstrapServices(appCfg)
 
 	switch cliArgs.cmd {
 	case "setup":
-		if err := storage.Setup(context.Background()); err != nil {
+		if err := injector(func(storage dal.Storage) error {
+			return storage.Setup(context.Background())
+		}); err != nil {
 			panic(err)
 		}
+
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)

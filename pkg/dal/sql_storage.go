@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	// This has to be here to let go mods work work
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -14,6 +16,7 @@ type sqlStorage struct {
 }
 
 func (s *sqlStorage) Setup(ctx context.Context) error {
+	logger.Info(ctx, "Setup SQL storage")
 	_, err := s.db.Exec(`
 CREATE TABLE users(
 	email nvarchar(30) NOT NULL PRIMARY KEY,
@@ -21,7 +24,7 @@ CREATE TABLE users(
 	id_token NTEXT NOT NULL
 )
 `)
-	return err
+	return errors.Wrap(err, "Failed to setup storage")
 }
 
 // TODO: Add context (for others as well)

@@ -1,6 +1,12 @@
 package dal
 
-import "context"
+import (
+	"context"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
+)
+
+var logger = diag.CreateLogger()
 
 // AuthTokenDTO is a DTO to store user auth token
 type AuthTokenDTO struct {

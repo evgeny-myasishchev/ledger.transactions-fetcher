@@ -25,6 +25,30 @@ var (
 	StorageDSN    = localParams.NewParam("storage/data-source-name").String()
 )
 
+// Log represents logger specific options
+type Log struct {
+	Level config.StringVal
+}
+
+// Google represents google settings
+type Google struct {
+	ClientID     config.StringVal
+	ClientSecret config.StringVal
+}
+
+// Storage represents storage settings
+type Storage struct {
+	Driver config.StringVal
+	DSN    config.StringVal
+}
+
+// AppConfig is a toplevel config structure
+type AppConfig struct {
+	Log     Log
+	Google  Google
+	Storage Storage
+}
+
 // Load will load and initialize config
 func Load() config.ServiceConfig {
 	cfg, err := configBuilder.LoadConfig()
@@ -32,4 +56,28 @@ func Load() config.ServiceConfig {
 		panic(err)
 	}
 	return cfg
+}
+
+// LoadAppConfig will load and initialize app config structure
+func LoadAppConfig() AppConfig {
+	cfg, err := configBuilder.LoadConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	appCfg := AppConfig{
+		Log: Log{
+			Level: cfg.StringParam(LogLevel),
+		},
+		Storage: Storage{
+			Driver: cfg.StringParam(StorageDriver),
+			DSN:    cfg.StringParam(StorageDSN),
+		},
+		Google: Google{
+			ClientID:     cfg.StringParam(GoogleClientID),
+			ClientSecret: cfg.StringParam(GoogleClientSecret),
+		},
+	}
+
+	return appCfg
 }
