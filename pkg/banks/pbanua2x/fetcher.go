@@ -44,9 +44,6 @@ func pbTimeForamt(t time.Time) string {
 }
 
 func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) ([]banks.BankTransaction, error) {
-
-	logger.Debug(ctx, "Fetching transactions for account: %v", params.BankAccountID)
-
 	// TODO: Err if no such merchant
 	merchant := f.userCfg.Merchants[params.BankAccountID]
 
@@ -99,6 +96,9 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	}
 
 	statements := apiResp.Data.Info.Statements.Values
+
+	// TODO: Obfuscate BankAccountID
+	logger.Info(ctx, "Fetched %v statements for account: %v", len(statements), params.BankAccountID)
 
 	trxs := make([]banks.BankTransaction, len(statements))
 	for i, stmt := range statements {

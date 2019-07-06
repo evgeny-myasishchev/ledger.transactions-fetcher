@@ -21,6 +21,7 @@ var logger = diag.CreateLogger()
 var cliArgs struct {
 	user          string
 	bankAccountID string
+	daysToFetch   int64
 }
 
 func showHelpAndExit() {
@@ -31,6 +32,7 @@ func showHelpAndExit() {
 func init() {
 	flag.StringVar(&cliArgs.user, "user", "", "User to fetch transactions for (email)")
 	flag.StringVar(&cliArgs.bankAccountID, "bic", "", "Bank account ID to fetch for (e.g card number)")
+	flag.Int64Var(&cliArgs.daysToFetch, "days", 2, "Number of days to fetch transactions for")
 
 	flag.Parse()
 }
@@ -50,15 +52,18 @@ func main() {
 
 	ctx := context.Background()
 
-	if err := injector(func(fetcherConfig banks.FetcherConfig) error {
+	err := injector(func(fetcherConfig banks.FetcherConfig) error {
 		fetcher, err := pbanua2x.NewFetcher(ctx, cliArgs.user, fetcherConfig)
 		if err != nil {
 			return err
 		}
+		to := time.Now()
+		from := to.Add(time.Duration(-24*cliArgs.daysToFetch) * time.Hour)
+		logger.Info(ctx, "Fetching transactions from %v to %v", from, to)
 		transactions, err := fetcher.Fetch(ctx, &banks.FetchParams{
 			BankAccountID: cliArgs.bankAccountID,
-			From:          time.Now().Add(-24 * time.Hour),
-			To:            time.Now(),
+			From:          from,
+			To:            to,
 		})
 		if err != nil {
 			return err
@@ -67,7 +72,10 @@ func main() {
 			fmt.Println(trx)
 		}
 		return nil
-	}); err != nil {
-		panic(err)
+	})
+
+	if err != nil {
+		logger.WithError(err).Info(ctx, "Failed to fetch transactions")
+		os.Exit(1)
 	}
 }
