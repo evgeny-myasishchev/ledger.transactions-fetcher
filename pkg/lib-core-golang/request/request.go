@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -56,6 +57,17 @@ func (f ReqFactory) WithHeader(key string, value string) ReqFactory {
 func Get(url string) ReqFactory {
 	return func() (*http.Request, error) {
 		return http.NewRequest("GET", url, nil)
+	}
+}
+
+// Post creates a new req factory that creates a post request body
+func Post(reqURL string, contentType string, body io.Reader) ReqFactory {
+	return func() (*http.Request, error) {
+		req, err := http.NewRequest("POST", reqURL, body)
+		if req != nil {
+			req.Header.Set("Content-Type", contentType)
+		}
+		return req, err
 	}
 }
 
