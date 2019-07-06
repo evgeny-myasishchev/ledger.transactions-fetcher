@@ -94,17 +94,18 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 		run  func(t *testing.T, f banks.Fetcher)
 	}
 
-	bankAccountID := "acc-" + faker.Word()
+	ledgerAccountID := "acc-" + faker.Word()
 
 	merchant := merchantConfig{
-		ID:       "mc1-" + faker.Word(),
-		Password: "mcpwd-" + faker.Word(),
+		ID:          "mc1-" + faker.Word(),
+		Password:    "mcpwd-" + faker.Word(),
+		BankAccount: "ba-" + faker.Word(),
 	}
 
 	userCfg := &userConfig{
 		UserID: "uid-" + faker.Word(),
 		Merchants: map[string]*merchantConfig{
-			bankAccountID: &merchant,
+			ledgerAccountID: &merchant,
 		},
 	}
 
@@ -143,9 +144,9 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 				name: "regular api call",
 				run: func(t *testing.T, f banks.Fetcher) {
 					fetchParams := banks.FetchParams{
-						BankAccountID: bankAccountID,
-						From:          timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
-						To:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						LedgerAccountID: ledgerAccountID,
+						From:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:              timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
 					}
 
 					var expectedData strings.Builder
@@ -155,7 +156,7 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					expectedData.WriteString(`<payment id="">`)
 					expectedData.WriteString(`<prop name="sd" value="` + pbTimeForamt(fetchParams.From) + `" />`)
 					expectedData.WriteString(`<prop name="ed" value="` + pbTimeForamt(fetchParams.To) + `" />`)
-					expectedData.WriteString(`<prop name="card" value="` + bankAccountID + `" />`)
+					expectedData.WriteString(`<prop name="card" value="` + merchant.BankAccount + `" />`)
 					expectedData.WriteString(`</payment>`)
 
 					md5hash := md5.Sum([]byte(expectedData.String() + merchant.Password))
@@ -211,12 +212,94 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 		},
 		func() testCase {
 			return testCase{
+				name: "fail if no merchant configured",
+				run: func(t *testing.T, f banks.Fetcher) {
+					notConfiguredAcc := "unknown-acc-" + faker.Word()
+					fetchParams := banks.FetchParams{
+						LedgerAccountID: notConfiguredAcc,
+						From:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:              timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+					}
+
+					_, err := f.Fetch(context.Background(), &fetchParams)
+					if !assert.Error(t, err) {
+						return
+					}
+
+					assert.EqualError(t, err, "No pbanua2x merchant configured for account: "+notConfiguredAcc)
+				},
+			}
+		},
+		func() testCase {
+			return testCase{
+				name: "fail if message with info",
+				run: func(t *testing.T, f banks.Fetcher) {
+					fetchParams := banks.FetchParams{
+						LedgerAccountID: ledgerAccountID,
+						From:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:              timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+					}
+
+					errorMessage := "Err: " + faker.Sentence()
+
+					var expectedData strings.Builder
+					expectedData.WriteString(`<oper>cmt</oper>`)
+					expectedData.WriteString(`<wait>0</wait>`)
+					expectedData.WriteString(`<test>0</test>`)
+					expectedData.WriteString(`<payment id="">`)
+					expectedData.WriteString(`<prop name="sd" value="` + pbTimeForamt(fetchParams.From) + `" />`)
+					expectedData.WriteString(`<prop name="ed" value="` + pbTimeForamt(fetchParams.To) + `" />`)
+					expectedData.WriteString(`<prop name="card" value="` + merchant.BankAccount + `" />`)
+					expectedData.WriteString(`</payment>`)
+
+					md5hash := md5.Sum([]byte(expectedData.String() + merchant.Password))
+					md5hashHex := hex.EncodeToString(md5hash[:])
+					signature := sha1.Sum([]byte(md5hashHex))
+
+					var expectedXML strings.Builder
+					expectedXML.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
+					expectedXML.WriteString(`<request version="1.0">`)
+					expectedXML.WriteString(`<merchant>`)
+					expectedXML.WriteString(`<id>` + merchant.ID + `</id>`)
+					expectedXML.WriteString(`<signature>`)
+					expectedXML.WriteString(hex.EncodeToString(signature[:]))
+					expectedXML.WriteString(`</signature>`)
+					expectedXML.WriteString(`</merchant>`)
+					expectedXML.WriteString(`<data>`)
+					expectedXML.WriteString(expectedData.String())
+					expectedXML.WriteString(`</data>`)
+					expectedXML.WriteString(`</request>`)
+
+					var resp strings.Builder
+					resp.WriteString("<response>")
+					resp.WriteString("<data><info>")
+					resp.WriteString(errorMessage)
+					resp.WriteString("</info></data>")
+					resp.WriteString("</response>")
+
+					gock.New(apiURL.Scheme+"://"+apiURL.Host).
+						Post(apiURL.Path).
+						MatchHeader("content-type", "application/xml").
+						BodyString(expectedXML.String()).
+						Reply(200).
+						BodyString(resp.String())
+
+					_, err := f.Fetch(context.Background(), &fetchParams)
+					if !assert.Error(t, err) {
+						return
+					}
+					assert.EqualError(t, err, errorMessage)
+				},
+			}
+		},
+		func() testCase {
+			return testCase{
 				name: "fail if non-200 response status",
 				run: func(t *testing.T, f banks.Fetcher) {
 					fetchParams := banks.FetchParams{
-						BankAccountID: bankAccountID,
-						From:          timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
-						To:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						LedgerAccountID: ledgerAccountID,
+						From:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:              timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
 					}
 
 					code := rand.Intn(100) + 300
@@ -238,9 +321,9 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 				name: "fail if error response",
 				run: func(t *testing.T, f banks.Fetcher) {
 					fetchParams := banks.FetchParams{
-						BankAccountID: bankAccountID,
-						From:          timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
-						To:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						LedgerAccountID: ledgerAccountID,
+						From:            timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
+						To:              timeVal(time.Parse(faker.BaseDateFormat, faker.Date())),
 					}
 
 					errorMessage := faker.Sentence()

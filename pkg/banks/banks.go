@@ -18,9 +18,9 @@ type BankTransaction interface {
 
 // FetchParams represents what to fetch from bank
 type FetchParams struct {
-	From          time.Time
-	To            time.Time
-	BankAccountID string
+	From            time.Time
+	To              time.Time
+	LedgerAccountID string
 }
 
 // Fetcher can fetch transaction for particular bank accountID

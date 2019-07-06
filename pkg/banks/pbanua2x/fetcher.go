@@ -24,14 +24,15 @@ var logger = diag.CreateLogger()
 type userConfig struct {
 	UserID string
 
-	// Merchants is a map where key is BankAccountID and value is a merchant config
+	// Merchants is a map where key is LedgerAccountID and value is a merchant config
 	// that is configured for reading from that account
 	Merchants map[string]*merchantConfig
 }
 
 type merchantConfig struct {
-	ID       string
-	Password string
+	ID          string
+	Password    string
+	BankAccount string
 }
 
 type pbanua2xFetcher struct {
@@ -44,8 +45,10 @@ func pbTimeForamt(t time.Time) string {
 }
 
 func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) ([]banks.BankTransaction, error) {
-	// TODO: Err if no such merchant
-	merchant := f.userCfg.Merchants[params.BankAccountID]
+	merchant, ok := f.userCfg.Merchants[params.LedgerAccountID]
+	if !ok {
+		return nil, fmt.Errorf("No pbanua2x merchant configured for account: %v", params.LedgerAccountID)
+	}
 
 	var data strings.Builder
 	data.WriteString(`<oper>cmt</oper>`)
@@ -54,7 +57,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	data.WriteString(`<payment id="">`)
 	data.WriteString(`<prop name="sd" value="` + pbTimeForamt(params.From) + `" />`)
 	data.WriteString(`<prop name="ed" value="` + pbTimeForamt(params.To) + `" />`)
-	data.WriteString(`<prop name="card" value="` + params.BankAccountID + `" />`)
+	data.WriteString(`<prop name="card" value="` + merchant.BankAccount + `" />`)
 	data.WriteString(`</payment>`)
 
 	md5hash := md5.Sum([]byte(data.String() + merchant.Password))
@@ -94,11 +97,13 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	if apiResp.Data.Error != nil {
 		return nil, fmt.Errorf("PB api call failed: %v", apiResp.Data.Error.Message)
 	}
+	if apiResp.Data.Info.Statements == nil {
+		return nil, errors.New(apiResp.Data.Info.Value)
+	}
 
 	statements := apiResp.Data.Info.Statements.Values
 
-	// TODO: Obfuscate BankAccountID
-	logger.Info(ctx, "Fetched %v statements for account: %v", len(statements), params.BankAccountID)
+	logger.Info(ctx, "Fetched %v statements for account: %v", len(statements), params.LedgerAccountID)
 
 	trxs := make([]banks.BankTransaction, len(statements))
 	for i, stmt := range statements {

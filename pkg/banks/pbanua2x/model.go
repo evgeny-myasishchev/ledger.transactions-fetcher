@@ -16,10 +16,11 @@ type apiRespData struct {
 	Error *apiRespError `xml:"error"`
 	Info  struct {
 		XMLName    xml.Name `xml:"info"`
-		Statements struct {
+		Statements *struct {
 			XMLName xml.Name       `xml:"statements"`
 			Values  []apiStatement `xml:"statement"`
 		}
+		Value string `xml:",innerxml"`
 	}
 }
 

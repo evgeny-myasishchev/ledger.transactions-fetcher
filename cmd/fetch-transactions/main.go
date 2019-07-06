@@ -19,9 +19,9 @@ import (
 var logger = diag.CreateLogger()
 
 var cliArgs struct {
-	user          string
-	bankAccountID string
-	daysToFetch   int64
+	user            string
+	ledgerAccountID string
+	daysToFetch     int64
 }
 
 func showHelpAndExit() {
@@ -31,14 +31,14 @@ func showHelpAndExit() {
 
 func init() {
 	flag.StringVar(&cliArgs.user, "user", "", "User to fetch transactions for (email)")
-	flag.StringVar(&cliArgs.bankAccountID, "bic", "", "Bank account ID to fetch for (e.g card number)")
+	flag.StringVar(&cliArgs.ledgerAccountID, "acc", "", "Ledger account ID to fetch for")
 	flag.Int64Var(&cliArgs.daysToFetch, "days", 2, "Number of days to fetch transactions for")
 
 	flag.Parse()
 }
 
 func main() {
-	if cliArgs.user == "" || cliArgs.bankAccountID == "" {
+	if cliArgs.user == "" || cliArgs.ledgerAccountID == "" {
 		showHelpAndExit()
 	}
 
@@ -61,9 +61,9 @@ func main() {
 		from := to.Add(time.Duration(-24*cliArgs.daysToFetch) * time.Hour)
 		logger.Info(ctx, "Fetching transactions from %v to %v", from, to)
 		transactions, err := fetcher.Fetch(ctx, &banks.FetchParams{
-			BankAccountID: cliArgs.bankAccountID,
-			From:          from,
-			To:            to,
+			LedgerAccountID: cliArgs.ledgerAccountID,
+			From:            from,
+			To:              to,
 		})
 		if err != nil {
 			return err
