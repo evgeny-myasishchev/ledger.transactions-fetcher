@@ -7,10 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/request"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 
@@ -76,23 +78,11 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	payload.WriteString(`</data>`)
 	payload.WriteString(`</request>`)
 
-	// TODO: Add a proxy for this so we could do logging and other stuff
-	res, err := http.Post(f.apiURL, "application/xml", strings.NewReader(payload.String()))
+	req := request.Post(f.apiURL, "application/xml", strings.NewReader(payload.String()))
+	res := request.Do(ctx, req)
+	body, err := res.ReadAll()
 	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode != 200 {
-		logger.
-			WithData(diag.MsgData{"response": string(body)}).
-			Info(ctx, "Failed to fetch transactions with status code: %v", res.StatusCode)
-		return nil, fmt.Errorf("Failed to fetch transactions, got %v status", res.StatusCode)
+		return nil, errors.Wrap(err, "Failed to fetch transactions")
 	}
 
 	var apiResp apiResponse
@@ -108,8 +98,6 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 		return nil, fmt.Errorf("PB api call failed: %v", apiResp.Data.Error.Message)
 	}
 
-	logger.Debug(ctx, "Got response status: %v", res.StatusCode)
-
 	statements := apiResp.Data.Info.Statements.Values
 
 	trxs := make([]banks.BankTransaction, len(statements))
@@ -124,7 +112,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 func NewFetcher(ctx context.Context, userID string, cfg banks.FetcherConfig) (banks.Fetcher, error) {
 	var userCfg userConfig
 	if err := cfg.GetUserConfig(ctx, userID, &userCfg); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to fetch user config")
 	}
 	return &pbanua2xFetcher{
 		// TODO: Parametrize
