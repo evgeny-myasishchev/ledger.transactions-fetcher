@@ -102,6 +102,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 
 	trxs := make([]banks.BankTransaction, len(statements))
 	for i, stmt := range statements {
+		stmt := stmt
 		trxs[i] = &stmt
 	}
 

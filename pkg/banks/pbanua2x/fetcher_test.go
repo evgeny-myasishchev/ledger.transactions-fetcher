@@ -123,10 +123,10 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 		return
 	}
 
-	writeStatementString := func(builder *strings.Builder) apiStatement {
+	writeStatementString := func(builder *strings.Builder, index int) apiStatement {
 		stmt := apiStatement{
 			XMLName: xml.Name{Local: "statement"},
-			Card:    "card-" + faker.Word(),
+			Card:    fmt.Sprint(index, "-card-"+faker.Word()),
 			Appcode: "app-code-" + faker.Word(),
 		}
 		res, err := xml.Marshal(&stmt)
@@ -180,9 +180,9 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					resp.WriteString("<response>")
 					resp.WriteString("<data><info><statements>")
 					statements := []apiStatement{
-						writeStatementString(&resp),
-						writeStatementString(&resp),
-						writeStatementString(&resp),
+						writeStatementString(&resp, 1),
+						writeStatementString(&resp, 2),
+						writeStatementString(&resp, 3),
 					}
 					resp.WriteString("</statements></info></data>")
 					resp.WriteString("</response>")
@@ -203,9 +203,8 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 						return
 					}
 					assert.Len(t, trxs, len(statements))
-					for _, trx := range trxs {
-						actual := *(trx.(*apiStatement))
-						assert.Contains(t, statements, actual)
+					for i, trx := range trxs {
+						assert.Equal(t, &statements[i], trx)
 					}
 				},
 			}
