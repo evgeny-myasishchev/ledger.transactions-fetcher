@@ -23,6 +23,8 @@ var (
 
 	StorageDriver = localParams.NewParam("storage/driver").String()
 	StorageDSN    = localParams.NewParam("storage/data-source-name").String()
+
+	FetcherConfigConfigDir = localParams.NewParam("fetcher-config/config-dir").String()
 )
 
 // Log represents logger specific options
@@ -42,11 +44,17 @@ type Storage struct {
 	DSN    config.StringVal
 }
 
+// FetcherConfig represents settings of a fetcher-config service
+type FetcherConfig struct {
+	ConfigDir config.StringVal
+}
+
 // AppConfig is a toplevel config structure
 type AppConfig struct {
-	Log     Log
-	Google  Google
-	Storage Storage
+	Log           Log
+	Google        Google
+	Storage       Storage
+	FetcherConfig FetcherConfig
 }
 
 // Load will load and initialize config
@@ -76,6 +84,9 @@ func LoadAppConfig() *AppConfig {
 		Google: Google{
 			ClientID:     cfg.StringParam(GoogleClientID),
 			ClientSecret: cfg.StringParam(GoogleClientSecret),
+		},
+		FetcherConfig: FetcherConfig{
+			ConfigDir: cfg.StringParam(FetcherConfigConfigDir),
 		},
 	}
 

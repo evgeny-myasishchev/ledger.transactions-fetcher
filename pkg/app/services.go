@@ -3,6 +3,8 @@ package app
 import (
 	"database/sql"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth"
@@ -40,6 +42,10 @@ func BootstrapServices(appCfg *config.AppConfig) Injector {
 			auth.WithOAuthClient(oauthClient),
 			auth.WithStorage(storage),
 		)
+	})
+
+	c.Provide(func() banks.FetcherConfig {
+		return banks.NewFSFetcherConfig(appCfg.FetcherConfig.ConfigDir.Value())
 	})
 
 	return func(function interface{}) error {

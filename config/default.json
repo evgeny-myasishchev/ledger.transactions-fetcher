@@ -6,8 +6,15 @@
     "pbanua2x": {
         "api": "https://api.privatbank.ua/p24api/rest_fiz"
     },
+    "google": {
+        "client-id": "TODO",
+        "client-secret": "TODO"
+    },
     "storage": {
         "driver": "sqlite3",
         "data-source-name": "db/fetcher.db"
+    },
+    "fetcher-config": {
+        "config-dir": "config/fetchers"
     }
 }
