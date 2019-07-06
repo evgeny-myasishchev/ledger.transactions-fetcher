@@ -8,9 +8,9 @@ import (
 var logger = diag.CreateLogger()
 
 func main() {
-	svcCfg := config.Load()
+	appCfg := config.LoadAppConfig()
 
 	diag.SetupLoggingSystem(func(setup diag.LoggingSystemSetup) {
-		setup.SetLogLevel(svcCfg.StringParam(config.LogLevel).Value())
+		setup.SetLogLevel(appCfg.Log.Level.Value())
 	})
 }

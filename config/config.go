@@ -59,7 +59,7 @@ func Load() config.ServiceConfig {
 }
 
 // LoadAppConfig will load and initialize app config structure
-func LoadAppConfig() AppConfig {
+func LoadAppConfig() *AppConfig {
 	cfg, err := configBuilder.LoadConfig()
 	if err != nil {
 		panic(err)
@@ -79,5 +79,5 @@ func LoadAppConfig() AppConfig {
 		},
 	}
 
-	return appCfg
+	return &appCfg
 }

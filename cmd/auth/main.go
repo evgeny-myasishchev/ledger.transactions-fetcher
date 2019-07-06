@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/app"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth"
 
@@ -41,46 +40,32 @@ func main() {
 
 	ctx := context.Background()
 
-	svcCfg := config.Load()
+	appCfg := config.LoadAppConfig()
 
 	diag.SetupLoggingSystem(func(setup diag.LoggingSystemSetup) {
-		setup.SetLogLevel(svcCfg.StringParam(config.LogLevel).Value())
+		setup.SetLogLevel(appCfg.Log.Level.Value())
 	})
 
-	oauthClient := auth.NewGoogleOAuthClient(auth.WithClientSecrets(
-		svcCfg.StringParam(config.GoogleClientID).Value(),
-		svcCfg.StringParam(config.GoogleClientSecret).Value(),
-	))
-
-	driver := svcCfg.StringParam(config.StorageDriver).Value()
-	dsn := svcCfg.StringParam(config.StorageDSN).Value()
-
-	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	storage, err := dal.NewSQLStorage(dal.WithSQLDb(db))
-	if err != nil {
-		panic(err)
-	}
-
-	authSvc := auth.NewService(
-		auth.WithOAuthClient(oauthClient),
-		auth.WithStorage(storage),
-	)
+	injector := app.BootstrapServices(appCfg)
 
 	switch cliArgs.cmd {
 	case "auth-url":
-		codeGrantURL := oauthClient.BuildCodeGrantURL()
-		fmt.Println("Paste url below to browser and follow instructions")
-		fmt.Println("Then use exchange-code action")
-		fmt.Println(codeGrantURL)
+		if err := injector(func(oauthClient auth.OAuthClient) {
+			codeGrantURL := oauthClient.BuildCodeGrantURL()
+			fmt.Println("Paste url below to browser and follow instructions")
+			fmt.Println("Then use exchange-code action")
+			fmt.Println(codeGrantURL)
+		}); err != nil {
+			panic(err)
+		}
 	case "register-user":
 		if cliArgs.authorizationCode == "" {
 			showHelpAndExit()
 		}
-		if err := authSvc.RegisterUser(ctx, cliArgs.authorizationCode); err != nil {
+		err := injector(func(authSvc auth.Service) error {
+			return authSvc.RegisterUser(ctx, cliArgs.authorizationCode)
+		})
+		if err != nil {
 			panic(err)
 		}
 		logger.Info(ctx, "User registered")

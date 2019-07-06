@@ -17,7 +17,7 @@ import (
 type Injector func(function interface{}) error
 
 // BootstrapServices setup di container with all app services
-func BootstrapServices(appCfg config.AppConfig) Injector {
+func BootstrapServices(appCfg *config.AppConfig) Injector {
 	c := dig.New()
 
 	c.Provide(func() (*sql.DB, error) {
@@ -31,7 +31,7 @@ func BootstrapServices(appCfg config.AppConfig) Injector {
 	c.Provide(func() auth.OAuthClient {
 		return auth.NewGoogleOAuthClient(auth.WithClientSecrets(
 			appCfg.Google.ClientID.Value(),
-			appCfg.Google.ClientID.Value(),
+			appCfg.Google.ClientSecret.Value(),
 		))
 	})
 
