@@ -4,7 +4,7 @@ import (
 	"encoding/xml"
 	"errors"
 
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/ledger"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 )
 
 type apiResponse struct {
@@ -41,6 +41,6 @@ type apiStatement struct {
 	Description string   `xml:"description,attr"`
 }
 
-func (pt *apiStatement) ToPendingTransaction() (*ledger.PendingTransaction, error) {
+func (pt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
 	return nil, errors.New("Not implemented")
 }

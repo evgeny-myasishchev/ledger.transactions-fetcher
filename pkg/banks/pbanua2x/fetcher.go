@@ -44,7 +44,7 @@ func pbTimeForamt(t time.Time) string {
 	return fmt.Sprint(t.Day(), ".", int(t.Month()), ".", t.Year())
 }
 
-func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) ([]banks.BankTransaction, error) {
+func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) ([]banks.FetchedTransaction, error) {
 	merchant, ok := f.userCfg.Merchants[params.LedgerAccountID]
 	if !ok {
 		return nil, fmt.Errorf("No pbanua2x merchant configured for account: %v", params.LedgerAccountID)
@@ -105,7 +105,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 
 	logger.Info(ctx, "Fetched %v statements for account: %v", len(statements), params.LedgerAccountID)
 
-	trxs := make([]banks.BankTransaction, len(statements))
+	trxs := make([]banks.FetchedTransaction, len(statements))
 	for i, stmt := range statements {
 		stmt := stmt
 		trxs[i] = &stmt
