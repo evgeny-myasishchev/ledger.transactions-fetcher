@@ -2,9 +2,12 @@ package pbanua2x
 
 import (
 	"encoding/xml"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/ledger"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks"
@@ -22,16 +25,17 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 	}
 	type testCase struct {
 		fields fields
-		want   *dal.PendingTransactionDTO
+		assert func(*testing.T, *dal.PendingTransactionDTO)
 	}
 	type tcFn func() (string, testCase)
 
-	randStmt := func(tranTime time.Time) *apiStatement {
+	randStmt := func(tranTime time.Time, amount string) *apiStatement {
 		localTime := tranTime.Local()
 		stmt := apiStatement{
 			XMLName:         xml.Name{Local: "statement"},
 			Terminal:        "term: " + faker.Word(),
 			Description:     faker.Sentence(),
+			Cardamount:      amount,
 			Trandate:        localTime.Format("2006-01-02"),
 			Trantime:        localTime.Format("15:04:05"),
 			ledgerAccountID: "acc-" + faker.Word(),
@@ -42,13 +46,30 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 	tests := []tcFn{
 		func() (string, testCase) {
 			tranTime := time.Unix(faker.UnixTime(), 0)
-			stmt := randStmt(tranTime)
+			amountStr := fmt.Sprintf("%.2f", 100+100*rand.Float32())
+			stmt := randStmt(tranTime, amountStr)
 			return "map standard properties", testCase{
 				fields: fields{stmt: stmt},
-				want: &dal.PendingTransactionDTO{
-					Comment:   stmt.Description + " (" + stmt.Terminal + ")",
-					AccountID: stmt.ledgerAccountID,
-					Date:      tranTime.Local().Format(time.RFC3339),
+				assert: func(t *testing.T, got *dal.PendingTransactionDTO) {
+					assert.Equal(t, &dal.PendingTransactionDTO{
+						Comment:   stmt.Description + " (" + stmt.Terminal + ")",
+						AccountID: stmt.ledgerAccountID,
+						Amount:    amountStr,
+						TypeID:    ledger.TransactionTypeIncome,
+						Date:      tranTime.Local().Format(time.RFC3339),
+					}, got)
+				},
+			}
+		},
+		func() (string, testCase) {
+			tranTime := time.Unix(faker.UnixTime(), 0)
+			amountStr := fmt.Sprintf("%.2f", 100+100*rand.Float32())
+			stmt := randStmt(tranTime, "-"+amountStr)
+			return "map negative amount as expense", testCase{
+				fields: fields{stmt: stmt},
+				assert: func(t *testing.T, got *dal.PendingTransactionDTO) {
+					assert.Equal(t, amountStr, got.Amount)
+					assert.Equal(t, ledger.TransactionTypeExpense, got.TypeID)
 				},
 			}
 		},
@@ -60,7 +81,7 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
-			assert.Equal(t, tt.want, got)
+			tt.assert(t, got)
 		})
 	}
 }

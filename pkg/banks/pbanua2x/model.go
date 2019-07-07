@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"time"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/ledger"
+
 	"github.com/pkg/errors"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
@@ -46,11 +48,41 @@ type apiStatement struct {
 	ledgerAccountID string
 }
 
+type amountSpec struct {
+	typeID uint8
+	value  string
+}
+
+func parseAmount(amountStr string) amountSpec {
+	typeID := ledger.TransactionTypeIncome
+	amountStart := 0
+	if amountStr[0] == '-' {
+		typeID = ledger.TransactionTypeExpense
+		amountStart = 1
+	}
+	amountEnd := amountStart
+	for ; amountEnd < len(amountStr); amountEnd++ {
+		if amountStr[amountEnd] == '.' {
+			continue
+		}
+		if amountStr[amountEnd] >= '0' && amountStr[amountEnd] <= '9' {
+			continue
+		}
+		break
+	}
+
+	return amountSpec{
+		typeID: typeID,
+		value:  amountStr[amountStart:amountEnd],
+	}
+}
+
 func (stmt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
 	tranTime, err := time.ParseInLocation(
 		"2006-01-02 15:04:05", stmt.Trandate+" "+stmt.Trantime,
 		time.Local,
 	)
+	amount := parseAmount(stmt.Cardamount)
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"Failed to parse date/time string: '%v %v'",
@@ -60,6 +92,8 @@ func (stmt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
 	return &dal.PendingTransactionDTO{
 		Comment:   stmt.Description + " (" + stmt.Terminal + ")",
 		AccountID: stmt.ledgerAccountID,
+		Amount:    amount.value,
+		TypeID:    amount.typeID,
 
 		// TODO: pb zone should be configurable
 		Date: tranTime.Format(time.RFC3339),
