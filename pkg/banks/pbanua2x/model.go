@@ -2,7 +2,9 @@ package pbanua2x
 
 import (
 	"encoding/xml"
-	"errors"
+	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 )
@@ -39,8 +41,27 @@ type apiStatement struct {
 	Rest        string   `xml:"rest,attr"`
 	Terminal    string   `xml:"terminal,attr"`
 	Description string   `xml:"description,attr"`
+
+	// This is injected in order to be able to implement ToDTO
+	ledgerAccountID string
 }
 
-func (pt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
-	return nil, errors.New("Not implemented")
+func (stmt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
+	tranTime, err := time.ParseInLocation(
+		"2006-01-02 15:04:05", stmt.Trandate+" "+stmt.Trantime,
+		time.Local,
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err,
+			"Failed to parse date/time string: '%v %v'",
+			stmt.Trandate,
+			stmt.Trantime)
+	}
+	return &dal.PendingTransactionDTO{
+		Comment:   stmt.Description + " (" + stmt.Terminal + ")",
+		AccountID: stmt.ledgerAccountID,
+
+		// TODO: pb zone should be configurable
+		Date: tranTime.Format(time.RFC3339),
+	}, nil
 }

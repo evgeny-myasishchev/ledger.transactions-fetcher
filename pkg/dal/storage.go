@@ -2,6 +2,7 @@ package dal
 
 import (
 	"context"
+	"time"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
@@ -23,6 +24,9 @@ type PendingTransactionDTO struct {
 	Comment   string
 	AccountID string
 	TypeID    uint8
+
+	FetchedAt time.Time
+	SyncedAt  *time.Time
 }
 
 // Storage is a persistance layer
