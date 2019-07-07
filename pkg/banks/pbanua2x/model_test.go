@@ -1,6 +1,8 @@
 package pbanua2x
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"math/rand"
@@ -33,7 +35,8 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 		localTime := tranTime.Local()
 		stmt := apiStatement{
 			XMLName:         xml.Name{Local: "statement"},
-			Terminal:        "term: " + faker.Word(),
+			Appcode:         "appcode-" + faker.Word(),
+			Terminal:        "term-" + faker.Word(),
 			Description:     faker.Sentence(),
 			Cardamount:      amount,
 			Trandate:        localTime.Format("2006-01-02"),
@@ -48,10 +51,17 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 			tranTime := time.Unix(faker.UnixTime(), 0)
 			amountStr := fmt.Sprintf("%.2f", 100+100*rand.Float32())
 			stmt := randStmt(tranTime, amountStr)
+
+			id := base64.RawURLEncoding.
+				EncodeToString(sha1.New().Sum([]byte(
+					stmt.Appcode + ":" + stmt.Amount + ":" + stmt.Trandate + ":" + stmt.Trantime,
+				)))
+
 			return "map standard properties", testCase{
 				fields: fields{stmt: stmt},
 				assert: func(t *testing.T, got *dal.PendingTransactionDTO) {
 					assert.Equal(t, &dal.PendingTransactionDTO{
+						ID:        id,
 						Comment:   stmt.Description + " (" + stmt.Terminal + ")",
 						AccountID: stmt.ledgerAccountID,
 						Amount:    amountStr,

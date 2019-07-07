@@ -1,6 +1,8 @@
 package pbanua2x
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/xml"
 	"time"
 
@@ -90,6 +92,10 @@ func (stmt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
 			stmt.Trantime)
 	}
 	return &dal.PendingTransactionDTO{
+		ID: base64.RawURLEncoding.
+			EncodeToString(sha1.New().Sum([]byte(
+				stmt.Appcode + ":" + stmt.Amount + ":" + stmt.Trandate + ":" + stmt.Trantime,
+			))),
 		Comment:   stmt.Description + " (" + stmt.Terminal + ")",
 		AccountID: stmt.ledgerAccountID,
 		Amount:    amount.value,

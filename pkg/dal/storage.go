@@ -25,7 +25,7 @@ type PendingTransactionDTO struct {
 	AccountID string
 	TypeID    uint8
 
-	FetchedAt time.Time
+	CreatedAt time.Time
 	SyncedAt  *time.Time
 }
 
