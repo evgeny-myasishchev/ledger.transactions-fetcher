@@ -1,6 +1,7 @@
 test.log
 tmp/
 config/fetchers
+config/local*.json
 db/
 
 # Binaries for programs and plugins
