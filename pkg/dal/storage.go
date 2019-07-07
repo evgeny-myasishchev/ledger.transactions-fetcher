@@ -34,4 +34,6 @@ type Storage interface {
 	Setup(ctx context.Context) error
 	GetAuthTokenByEmail(ctx context.Context, email string) (*AuthTokenDTO, error)
 	SaveAuthToken(ctx context.Context, token *AuthTokenDTO) error
+
+	SavePendingTransaction(ctx context.Context, trx *PendingTransactionDTO) error
 }

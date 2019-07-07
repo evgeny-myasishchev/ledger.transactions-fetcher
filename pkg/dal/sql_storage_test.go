@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/bxcodec/faker/v3"
-
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -166,6 +166,83 @@ func Test_sqlStorage_SaveAccessToken(t *testing.T) {
 			}
 			err = s.SaveAuthToken(context.TODO(), tt.args.token)
 			tt.assert(t, s, err)
+		})
+	}
+}
+
+func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+	type args struct {
+		trx *PendingTransactionDTO
+	}
+	type testCase struct {
+		args   args
+		assert func()
+	}
+
+	randTrx := func() *PendingTransactionDTO {
+		return &PendingTransactionDTO{
+			ID:        faker.Word(),
+			Amount:    faker.Word(),
+			Date:      faker.Word(),
+			Comment:   faker.Word(),
+			AccountID: faker.Word(),
+			TypeID:    uint8(rand.Intn(20)),
+		}
+	}
+
+	type ttFn func(*testing.T, *sql.DB) testCase
+	tests := []func() (string, ttFn){
+		func() (string, ttFn) {
+			return "insert new", func(t *testing.T, db *sql.DB) testCase {
+				trx := randTrx()
+				return testCase{
+					args: args{trx: trx},
+					assert: func() {
+						row := db.QueryRow(`
+						SELECT 
+							id, amount, date, comment, account_id, type_id, created_at 
+						FROM transactions 
+						WHERE id=$1
+						`, trx.ID)
+						var got PendingTransactionDTO
+						var gotCreatedAt *time.Time
+						if err := row.Scan(
+							&got.ID,
+							&got.Amount,
+							&got.Date,
+							&got.Comment,
+							&got.AccountID,
+							&got.TypeID,
+							&gotCreatedAt,
+						); !assert.NoError(t, err) {
+							return
+						}
+						assert.Equal(t, trx, &got)
+						assert.InDelta(t, time.Now().Unix(), gotCreatedAt.Unix(), 0)
+					},
+				}
+			}
+		},
+	}
+	for _, tt := range tests {
+		name, ttFn := tt()
+		t.Run(name, func(t *testing.T) {
+			db, err := sql.Open("sqlite3", ":memory:")
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer db.Close()
+			s := Storage(&sqlStorage{db: db})
+			if err := s.Setup(context.TODO()); !assert.NoError(t, err) {
+				return
+			}
+			tt := ttFn(t, db)
+			err = s.SavePendingTransaction(context.Background(), tt.args.trx)
+			if !assert.NoError(t, err) {
+				return
+			}
+			tt.assert()
 		})
 	}
 }

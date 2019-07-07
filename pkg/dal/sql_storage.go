@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -18,11 +19,20 @@ type sqlStorage struct {
 func (s *sqlStorage) Setup(ctx context.Context) error {
 	logger.Info(ctx, "Setup SQL storage")
 	_, err := s.db.Exec(`
-CREATE TABLE users(
+CREATE TABLE IF NOT EXISTS users(
 	email nvarchar(30) NOT NULL PRIMARY KEY,
 	refresh_token NTEXT NOT NULL,
 	id_token NTEXT NOT NULL
-)
+);
+CREATE TABLE IF NOT EXISTS transactions(
+	id        nvarchar(255) NOT NULL PRIMARY KEY,
+	amount    nvarchar(255) NOT NULL,
+	date      nvarchar(255) NOT NULL,
+	comment   nvarchar(255) NOT NULL,
+	account_id nvarchar(255) NOT NULL,
+	type_id    INTEGER(8) NOT NULL,
+	created_at timestamp NOT NULL
+);
 `)
 	return errors.Wrap(err, "Failed to setup storage")
 }
@@ -64,6 +74,24 @@ func (s *sqlStorage) SaveAuthToken(ctx context.Context, token *AuthTokenDTO) err
 	SET id_token=$2, refresh_token=$3
 	`,
 		token.Email, token.IDToken, token.RefreshToken); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *sqlStorage) SavePendingTransaction(ctx context.Context, trx *PendingTransactionDTO) error {
+	if _, err := s.db.ExecContext(ctx, `
+	INSERT INTO transactions(
+		id,
+		amount,
+		date,
+		comment,
+		account_id,
+		type_id,
+		created_at
+	)
+	VALUES($1, $2, $3, $4, $5, $6, $7)
+	`, trx.ID, trx.Amount, trx.Date, trx.Comment, trx.AccountID, trx.TypeID, time.Now()); err != nil {
 		return err
 	}
 	return nil
