@@ -206,7 +206,7 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 						WHERE id=$1
 						`, trx.ID)
 						var got PendingTransactionDTO
-						var gotCreatedAt *time.Time
+						var gotCreatedAt time.Time
 						if err := row.Scan(
 							&got.ID,
 							&got.Amount,
@@ -219,7 +219,51 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 							return
 						}
 						assert.Equal(t, trx, &got)
-						assert.InDelta(t, time.Now().Unix(), gotCreatedAt.Unix(), 0)
+						assert.InDelta(t, time.Now().Unix(), gotCreatedAt.Unix(), 1)
+					},
+				}
+			}
+		},
+		func() (string, ttFn) {
+			return "update existing", func(t *testing.T, db *sql.DB) testCase {
+				newTrx := randTrx()
+				s := Storage(&sqlStorage{db: db})
+				if err := s.SavePendingTransaction(context.TODO(), newTrx); !assert.NoError(t, err) {
+					return testCase{}
+				}
+				updatedTrx := randTrx()
+				updatedTrx.ID = newTrx.ID
+				syncedAt := time.Unix(faker.RandomUnixTime(), 0)
+				updatedTrx.SyncedAt = &syncedAt
+
+				return testCase{
+					args: args{trx: updatedTrx},
+					assert: func() {
+						row := db.QueryRow(`
+						SELECT 
+							id, amount, date, comment, account_id, type_id, created_at, synced_at
+						FROM transactions 
+						WHERE id=$1
+						`, updatedTrx.ID)
+						var gotCreatedAt time.Time
+						var gotSyncedAt time.Time
+						var got PendingTransactionDTO
+						if err := row.Scan(
+							&got.ID,
+							&got.Amount,
+							&got.Date,
+							&got.Comment,
+							&got.AccountID,
+							&got.TypeID,
+							&gotCreatedAt,
+							&gotSyncedAt,
+						); !assert.NoError(t, err) {
+							return
+						}
+						assert.InDelta(t, gotCreatedAt.Unix(), time.Now().Unix(), 1)
+						assert.InDelta(t, gotSyncedAt.Unix(), syncedAt.Unix(), 1)
+						got.SyncedAt = updatedTrx.SyncedAt
+						assert.Equal(t, updatedTrx, &got)
 					},
 				}
 			}
@@ -238,6 +282,9 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 				return
 			}
 			tt := ttFn(t, db)
+			if t.Failed() {
+				return
+			}
 			err = s.SavePendingTransaction(context.Background(), tt.args.trx)
 			if !assert.NoError(t, err) {
 				return

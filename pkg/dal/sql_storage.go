@@ -25,13 +25,14 @@ CREATE TABLE IF NOT EXISTS users(
 	id_token NTEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS transactions(
-	id        nvarchar(255) NOT NULL PRIMARY KEY,
-	amount    nvarchar(255) NOT NULL,
-	date      nvarchar(255) NOT NULL,
-	comment   nvarchar(255) NOT NULL,
+	id nvarchar(255) NOT NULL PRIMARY KEY,
+	amount nvarchar(255) NOT NULL,
+	date nvarchar(255) NOT NULL,
+	comment nvarchar(255) NOT NULL,
 	account_id nvarchar(255) NOT NULL,
-	type_id    INTEGER(8) NOT NULL,
-	created_at timestamp NOT NULL
+	type_id integer(8) NOT NULL,
+	created_at timestamp NOT NULL,
+	synced_at timestamp NULL
 );
 `)
 	return errors.Wrap(err, "Failed to setup storage")
@@ -88,10 +89,15 @@ func (s *sqlStorage) SavePendingTransaction(ctx context.Context, trx *PendingTra
 		comment,
 		account_id,
 		type_id,
-		created_at
+		created_at,
+		synced_at
 	)
-	VALUES($1, $2, $3, $4, $5, $6, $7)
-	`, trx.ID, trx.Amount, trx.Date, trx.Comment, trx.AccountID, trx.TypeID, time.Now()); err != nil {
+	VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+	ON CONFLICT(id) DO UPDATE 
+	SET amount=$2, date=$3, comment=$4, account_id=$5, type_id=$6, synced_at=$8
+	`,
+		trx.ID, trx.Amount, trx.Date, trx.Comment,
+		trx.AccountID, trx.TypeID, time.Now(), trx.SyncedAt); err != nil {
 		return err
 	}
 	return nil
