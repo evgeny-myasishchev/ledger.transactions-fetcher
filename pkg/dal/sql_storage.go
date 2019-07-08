@@ -98,7 +98,7 @@ func (s *sqlStorage) SavePendingTransaction(ctx context.Context, trx *PendingTra
 	`,
 		trx.ID, trx.Amount, trx.Date, trx.Comment,
 		trx.AccountID, trx.TypeID, time.Now(), trx.SyncedAt); err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to save transaction: %v, %v (%v)", trx.Amount, trx.Date, trx.Comment)
 	}
 	return nil
 }

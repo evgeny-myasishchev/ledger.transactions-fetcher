@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"time"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks/pbanua2x"
@@ -52,7 +53,7 @@ func main() {
 
 	ctx := context.Background()
 
-	err := injector(func(fetcherConfig banks.FetcherConfig) error {
+	err := injector(func(fetcherConfig banks.FetcherConfig, storage dal.Storage) error {
 		fetcher, err := pbanua2x.NewFetcher(ctx, cliArgs.user, fetcherConfig)
 		if err != nil {
 			return err
@@ -69,13 +70,20 @@ func main() {
 			return err
 		}
 		for _, trx := range transactions {
-			fmt.Println(trx)
+			trxDto, err := trx.ToDTO()
+			if err != nil {
+				return err
+			}
+			if err := storage.SavePendingTransaction(ctx, trxDto); err != nil {
+				return err
+			}
 		}
+		logger.Info(ctx, "Saved %v transactions", len(transactions))
 		return nil
 	})
 
 	if err != nil {
-		logger.WithError(err).Info(ctx, "Failed to fetch transactions")
+		logger.WithError(err).Error(ctx, "Failed to fetch transactions")
 		os.Exit(1)
 	}
 }
