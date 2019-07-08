@@ -11,12 +11,12 @@ import (
 )
 
 // JSONMarshalToReader marshal JSON or panic. To be used for tests only
-func JSONMarshalToReader(v interface{}) io.Reader {
+func JSONMarshalToReader(t *testing.T, v interface{}) (io.Reader, bool) {
 	payload, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
+	if !assert.NoError(t, err) {
+		return nil, false
 	}
-	return bytes.NewReader(payload)
+	return bytes.NewReader(payload), true
 }
 
 // JSONUnmarshalBuffer unmarshal provided buffer. To be used for tests only

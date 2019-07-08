@@ -1,19 +1,15 @@
 package ledger
 
 const (
-	// TransactionTypeIncome is holds type of income transactions
+	// TransactionTypeIncome is a type of income transactions
 	TransactionTypeIncome uint8 = 1
 
-	// TransactionTypeExpense is holds type of expense transactions
+	// TransactionTypeExpense is a type of expense transactions
 	TransactionTypeExpense uint8 = 2
 )
 
-// PendingTransaction represents ledger pending transaction
-type PendingTransaction struct {
-	ID        string
-	Amount    string
-	Date      string
-	Comment   string
-	AccountID string
-	TypeID    string
+// AccountDTO represents ledger account data
+type AccountDTO struct {
+	ID   string `json:"aggregate_id"`
+	Name string `json:"name"`
 }
