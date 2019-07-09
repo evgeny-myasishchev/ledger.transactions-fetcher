@@ -4,13 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"gopkg.in/h2non/gock.v1"
-
-	tst "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/internal/testing"
-
 	"github.com/bxcodec/faker/v3"
-
+	tst "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/internal/testing"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
 )
 
 func Test_API_ListAccounts(t *testing.T) {
@@ -82,6 +79,64 @@ func Test_API_ListAccounts(t *testing.T) {
 			if tt.after != nil {
 				tt.after()
 			}
+		})
+	}
+}
+
+func TestNewAPI(t *testing.T) {
+	type args struct {
+		baseURL string
+		idToken string
+	}
+	type testCase struct {
+		args  args
+		want  API
+		after func()
+	}
+	type tcFn func(*testing.T) testCase
+	tests := []func() (string, tcFn){
+		func() (string, tcFn) {
+			return "start session and return new api", func(t *testing.T) testCase {
+				args := args{
+					baseURL: "https://my-ledger." + faker.Word() + ".com",
+					idToken: "id-token-" + faker.Word(),
+				}
+				session := "sess-" + faker.Word()
+				csrf := "csrf-" + faker.Word()
+				gock.New(args.baseURL).
+					Post("/api/sessions").
+					JSON(map[string]string{
+						"google_id_token": args.idToken,
+					}).
+					Reply(200).
+					AddHeader("Set-Cookie", sessionCookieName+"="+session).
+					JSON(map[string]string{
+						csrfTokenName: csrf,
+					})
+				return testCase{
+					args: args,
+					want: API(&api{
+						baseURL:   args.baseURL,
+						csrfToken: csrf,
+						session:   session,
+					}),
+					after: func() {
+						assert.True(t, gock.IsDone())
+					},
+				}
+			}
+		},
+	}
+	for _, tt := range tests {
+		name, tt := tt()
+		t.Run(name, func(t *testing.T) {
+			tt := tt(t)
+			got, err := Factory(NewAPI)(context.TODO(), tt.args.baseURL, tt.args.idToken)
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, tt.want, got)
+			tt.after()
 		})
 	}
 }

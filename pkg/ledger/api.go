@@ -1,7 +1,9 @@
 package ledger
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/request"
 
@@ -41,5 +43,40 @@ type Factory func(ctx context.Context, baseURL string, idToken string) (API, err
 
 // NewAPI returns an instance of a new API initialized with given token
 func NewAPI(ctx context.Context, baseURL string, idToken string) (API, error) {
-	return nil, nil
+	startSessionPayload, err := json.Marshal(map[string]string{
+		"google_id_token": idToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+	req := request.Post(
+		baseURL+"/api/sessions",
+		"application/json",
+		bytes.NewReader(startSessionPayload))
+
+	var sessionData map[string]string
+	res := request.Do(ctx, req)
+	if err := res.DecodeJSON(&sessionData); err != nil {
+		return nil, err
+	}
+	resVal, err := res()
+	if err != nil {
+		return nil, err
+	}
+	cookies := resVal.Cookies()
+	var session string
+	for _, cookie := range cookies {
+		if cookie.Name == sessionCookieName {
+			session = cookie.Value
+			break
+		}
+	}
+
+	// TODO: Fail if no session
+
+	return &api{
+		baseURL:   baseURL,
+		csrfToken: sessionData[csrfTokenName],
+		session:   session,
+	}, nil
 }
