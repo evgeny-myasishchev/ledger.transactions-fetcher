@@ -75,11 +75,11 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 		assert func(token string, err error)
 	}
 
-	randomTokenDto := func(t *testing.T) *dal.AuthTokenDTO {
+	randomTokenDto := func(t *testing.T, exp int64) *dal.AuthTokenDTO {
 		email := faker.Email()
 		idToken, err := tst.EncodeUnsignedJWT(t, map[string]interface{}{
 			"email": email,
-			"exp":   time.Now().Unix() + 20,
+			"exp":   exp,
 		})
 		if !assert.NoError(t, err) {
 			return nil
@@ -95,7 +95,7 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 	tests := []func() (string, tcFn){
 		func() (string, tcFn) {
 			return "get the token", func(t *testing.T) *testCase {
-				authToken := randomTokenDto(t)
+				authToken := randomTokenDto(t, time.Now().Unix()+20)
 				if authToken == nil {
 					return nil
 				}
@@ -119,6 +119,45 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 				}
 			}
 		},
+		// func() (string, tcFn) {
+		// 	return "refresh expired token", func(t *testing.T) *testCase {
+		// 		authToken := randomTokenDto(t, time.Now().Unix()-20)
+		// 		if authToken == nil {
+		// 			return nil
+		// 		}
+
+		// 		refreshedToken := &RefreshedToken{
+		// 			IDToken: "refreshed-token-" + faker.Word(),
+		// 		}
+
+		// 		ctx := context.TODO()
+		// 		ctrl := gomock.NewController(t)
+
+		// 		storage := NewMockStorage(ctrl)
+		// 		storage.
+		// 			EXPECT().
+		// 			GetAuthTokenByEmail(ctx, authToken.Email).
+		// 			Return(authToken, nil)
+
+		// 		oauthClient := NewMockOAuthClient(ctrl)
+		// 		oauthClient.
+		// 			EXPECT().
+		// 			PerformRefreshFlow(ctx, authToken.RefreshToken).
+		// 			Return(refreshedToken, nil)
+
+		// 		return &testCase{
+		// 			fields: fields{storage: storage, oauthClient: oauthClient},
+		// 			args:   args{ctx: ctx, email: authToken.Email},
+		// 			assert: func(token string, err error) {
+		// 				defer ctrl.Finish()
+		// 				if !assert.NoError(t, err) {
+		// 					return
+		// 				}
+		// 				assert.Equal(t, refreshedToken.IDToken, token)
+		// 			},
+		// 		}
+		// 	}
+		// },
 	}
 	for _, tt := range tests {
 		name, tt := tt()
