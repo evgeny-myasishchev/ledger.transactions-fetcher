@@ -128,7 +128,7 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 				}
 
 				refreshedToken := &RefreshedToken{
-					IDToken: "refreshed-token-" + faker.Word(),
+					IDToken: types.IDToken("refreshed-token-" + faker.Word()),
 				}
 
 				ctx := context.TODO()
@@ -145,6 +145,15 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 					EXPECT().
 					PerformRefreshFlow(ctx, authToken.RefreshToken).
 					Return(refreshedToken, nil)
+
+				storage.
+					EXPECT().
+					SaveAuthToken(ctx, &dal.AuthTokenDTO{
+						Email:        authToken.Email,
+						IDToken:      refreshedToken.IDToken,
+						RefreshToken: authToken.RefreshToken,
+					}).
+					Return(nil)
 
 				return &testCase{
 					fields: fields{storage: storage, oauthClient: oauthClient},

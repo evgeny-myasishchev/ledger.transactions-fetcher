@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -43,11 +44,35 @@ func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 }
 
 func (svc *service) FetchAuthToken(ctx context.Context, email string) (types.IDToken, error) {
-	// TODO: Refresh expired token
+	logger.Debug(ctx, "Fetching auth token for user %v", email)
 	token, err := svc.storage.GetAuthTokenByEmail(ctx, email)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Failed to get auth token from storage")
 	}
+
+	tokenDetails, err := token.IDToken.ExtractIDTokenDetails()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to extract token details")
+	}
+
+	// Refreshing 15 seconds before expiry
+	now := time.Now()
+	if tokenDetails.Expires+15 <= now.Unix() {
+		logger.Debug(ctx, "User token expired. Refreshing")
+		refreshedToken, err := svc.oauthClient.PerformRefreshFlow(ctx, token.RefreshToken)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to refresh token")
+		}
+		if err := svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{
+			Email:        token.Email,
+			IDToken:      refreshedToken.IDToken,
+			RefreshToken: token.RefreshToken,
+		}); err != nil {
+			return "", errors.Wrap(err, "Failed to save refreshed token")
+		}
+		return refreshedToken.IDToken, nil
+	}
+
 	return token.IDToken, nil
 }
 

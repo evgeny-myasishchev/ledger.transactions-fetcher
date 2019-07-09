@@ -19,7 +19,7 @@ type AccessToken struct {
 
 // RefreshedToken represents refreshed token data
 type RefreshedToken struct {
-	IDToken string `json:"id_token"`
+	IDToken types.IDToken `json:"id_token"`
 }
 
 // OAuthClient is an oauth client abstraction
