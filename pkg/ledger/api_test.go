@@ -131,7 +131,7 @@ func TestNewAPI(t *testing.T) {
 		name, tt := tt()
 		t.Run(name, func(t *testing.T) {
 			tt := tt(t)
-			got, err := Factory(NewAPI)(context.TODO(), tt.args.baseURL, tt.args.idToken)
+			got, err := APIFactory(NewAPI)(context.TODO(), tt.args.baseURL, tt.args.idToken)
 			if !assert.NoError(t, err) {
 				return
 			}

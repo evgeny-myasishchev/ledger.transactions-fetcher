@@ -42,7 +42,12 @@ func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 }
 
 func (svc *service) FetchAuthToken(ctx context.Context, email string) (string, error) {
-	panic("not implemented")
+	// TODO: Refresh expired token
+	token, err := svc.storage.GetAuthTokenByEmail(ctx, email)
+	if err != nil {
+		return "", err
+	}
+	return token.IDToken, nil
 }
 
 // ServiceOpt is an option for auth service

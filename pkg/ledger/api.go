@@ -38,8 +38,8 @@ func (a *api) ListAccounts(ctx context.Context) ([]AccountDTO, error) {
 	return accounts, nil
 }
 
-// Factory is a function that creates ledger API instance for given idToken
-type Factory func(ctx context.Context, baseURL string, idToken string) (API, error)
+// APIFactory is a function that creates ledger API instance for given idToken
+type APIFactory func(ctx context.Context, baseURL string, idToken string) (API, error)
 
 // NewAPI returns an instance of a new API initialized with given token
 func NewAPI(ctx context.Context, baseURL string, idToken string) (API, error) {

@@ -25,6 +25,8 @@ var (
 	StorageDSN    = localParams.NewParam("storage/data-source-name").String()
 
 	FetcherConfigConfigDir = localParams.NewParam("fetcher-config/config-dir").String()
+
+	LedgerAPI = localParams.NewParam("ledger/api").String()
 )
 
 // Log represents logger specific options
@@ -49,12 +51,18 @@ type FetcherConfig struct {
 	ConfigDir config.StringVal
 }
 
+// Ledger ledger config
+type Ledger struct {
+	API config.StringVal
+}
+
 // AppConfig is a toplevel config structure
 type AppConfig struct {
 	Log           Log
 	Google        Google
 	Storage       Storage
 	FetcherConfig FetcherConfig
+	Ledger        Ledger
 }
 
 // Load will load and initialize config
@@ -87,6 +95,9 @@ func LoadAppConfig() *AppConfig {
 		},
 		FetcherConfig: FetcherConfig{
 			ConfigDir: cfg.StringParam(FetcherConfigConfigDir),
+		},
+		Ledger: Ledger{
+			API: cfg.StringParam(LedgerAPI),
 		},
 	}
 
