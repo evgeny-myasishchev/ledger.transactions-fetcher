@@ -117,3 +117,73 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 		})
 	}
 }
+
+func Test_googleOAuthClient_PerformRefreshFlow(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+	type fields struct {
+		clientID     string
+		clientSecret string
+	}
+	type args struct {
+		refreshToken string
+	}
+	type testCase struct {
+		name   string
+		fields fields
+		args   args
+		assert func(t *testing.T, got *RefreshedToken)
+	}
+	tests := []func() testCase{
+		func() testCase {
+			refreshToken := faker.Word()
+			clientID := faker.Word()
+			clientSecret := faker.Word()
+			want := RefreshedToken{
+				IDToken: types.IDToken("id-" + faker.Word()),
+			}
+			form := url.Values{}
+			form.Add("refresh_token", refreshToken)
+			form.Add("grant_type", "refresh_token")
+			form.Add("client_id", clientID)
+			form.Add("client_secret", clientSecret)
+			gock.New("https://www.googleapis.com").
+				Post("/oauth2/v4/token").
+				MatchHeader("content-type", "application/x-www-form-urlencoded").
+				BodyString(form.Encode()).
+				Reply(200).
+				BodyString(fmt.Sprintf(`{
+					"access_token": "not-important",
+					"expires_in": 123,
+					"refresh_token": "not-important",
+					"id_token": "%v"
+				}`, want.IDToken))
+			return testCase{
+				name:   "get access token",
+				fields: fields{clientID: clientID, clientSecret: clientSecret},
+				args:   args{refreshToken: refreshToken},
+				assert: func(t *testing.T, got *RefreshedToken) {
+					if !assert.Equal(t, &want, got) {
+						return
+					}
+					if !assert.True(t, gock.IsDone()) {
+						return
+					}
+				},
+			}
+		},
+	}
+	for _, tt := range tests {
+		tt := tt()
+		t.Run(tt.name, func(t *testing.T) {
+			c := OAuthClient(&googleOAuthClient{
+				clientID:     tt.fields.clientID,
+				clientSecret: tt.fields.clientSecret,
+			})
+			got, err := c.PerformRefreshFlow(context.Background(), tt.args.refreshToken)
+			if !assert.NoError(t, err) {
+				return
+			}
+			tt.assert(t, got)
+		})
+	}
+}

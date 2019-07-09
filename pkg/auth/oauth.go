@@ -64,7 +64,19 @@ func (c *googleOAuthClient) PerformAuthCodeExchangeFlow(ctx context.Context, cod
 }
 
 func (c *googleOAuthClient) PerformRefreshFlow(ctx context.Context, refreshToken string) (*RefreshedToken, error) {
-	return nil, nil
+	form := url.Values{}
+	form.Add("refresh_token", refreshToken)
+	form.Add("grant_type", "refresh_token")
+	form.Add("client_id", c.clientID)
+	form.Add("client_secret", c.clientSecret)
+
+	req := request.PostForm("https://www.googleapis.com/oauth2/v4/token", form)
+	res := request.Do(ctx, req)
+	var refreshedToken RefreshedToken
+	if err := res.DecodeJSON(&refreshedToken); err != nil {
+		return nil, errors.Wrap(err, "Failed to refresh token")
+	}
+	return &refreshedToken, nil
 }
 
 // GoogleOAuthOpt represents options for google oauth client
