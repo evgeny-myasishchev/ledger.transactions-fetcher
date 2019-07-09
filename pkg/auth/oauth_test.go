@@ -69,7 +69,7 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 			clientSecret := faker.Word()
 			want := AccessToken{
 				RefreshToken: "rt-" + faker.Word(),
-				IDToken:      "id-" + faker.Word(),
+				IDToken:      IDToken("id-" + faker.Word()),
 			}
 			form := url.Values{}
 			form.Add("code", code)
@@ -119,9 +119,9 @@ func Test_googleOAuthClient_GetAccessTokenByCode(t *testing.T) {
 	}
 }
 
-func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
+func Test_IDToken_ExtractIDTokenDetails(t *testing.T) {
 	type fields struct {
-		IDToken string
+		IDToken IDToken
 	}
 	type testCase struct {
 		name   string
@@ -145,7 +145,7 @@ func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
 
 			return testCase{
 				name:   "correct jwt token",
-				fields: fields{IDToken: tokenString},
+				fields: fields{IDToken: IDToken(tokenString)},
 				want: &IDTokenDetails{
 					Email:   email,
 					Expires: expires,
@@ -157,7 +157,7 @@ func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
 
 			return testCase{
 				name:   "real token",
-				fields: fields{IDToken: tokenString},
+				fields: fields{IDToken: IDToken(tokenString)},
 				want: &IDTokenDetails{
 					Email:   "kfovkdo32i390@nvodkq.gjl",
 					Expires: 3048133075,
@@ -168,10 +168,7 @@ func TestAccessToken_ExtractIDTokenDetails(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt()
 		t.Run(tt.name, func(t *testing.T) {
-			at := &AccessToken{
-				IDToken: tt.fields.IDToken,
-			}
-			got, err := at.ExtractIDTokenDetails()
+			got, err := tt.fields.IDToken.ExtractIDTokenDetails()
 			if !assert.NoError(t, err) {
 				return
 			}

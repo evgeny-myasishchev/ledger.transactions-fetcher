@@ -29,14 +29,14 @@ func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to perform oauth code flow")
 	}
-	idTokenDetails, err := accessToken.ExtractIDTokenDetails()
+	idTokenDetails, err := accessToken.IDToken.ExtractIDTokenDetails()
 	if err != nil {
 		return errors.Wrap(err, "Failed to extract ID token")
 	}
 	logger.Debug(ctx, "Got token for user %v, saving", idTokenDetails.Email)
 	return svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{
 		Email:        idTokenDetails.Email,
-		IDToken:      accessToken.IDToken,
+		IDToken:      accessToken.IDToken.Value(),
 		RefreshToken: accessToken.RefreshToken,
 	})
 }

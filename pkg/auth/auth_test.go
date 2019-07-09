@@ -26,7 +26,7 @@ func Test_Service_RegisterUser(t *testing.T) {
 				}
 				accessToken := AccessToken{
 					RefreshToken: "rt-" + faker.Word(),
-					IDToken:      idToken,
+					IDToken:      IDToken(idToken),
 				}
 				code := "code-" + faker.Word()
 				ctx := context.TODO()
@@ -44,7 +44,7 @@ func Test_Service_RegisterUser(t *testing.T) {
 					EXPECT().
 					SaveAuthToken(ctx, &dal.AuthTokenDTO{
 						Email:        email,
-						IDToken:      accessToken.IDToken,
+						IDToken:      accessToken.IDToken.Value(),
 						RefreshToken: accessToken.RefreshToken,
 					}).
 					Return(nil)
