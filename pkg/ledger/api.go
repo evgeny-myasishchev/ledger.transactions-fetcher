@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/types"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/request"
 
 	"github.com/pkg/errors"
@@ -39,12 +41,12 @@ func (a *api) ListAccounts(ctx context.Context) ([]AccountDTO, error) {
 }
 
 // APIFactory is a function that creates ledger API instance for given idToken
-type APIFactory func(ctx context.Context, baseURL string, idToken string) (API, error)
+type APIFactory func(ctx context.Context, baseURL string, idToken types.IDToken) (API, error)
 
 // NewAPI returns an instance of a new API initialized with given token
-func NewAPI(ctx context.Context, baseURL string, idToken string) (API, error) {
+func NewAPI(ctx context.Context, baseURL string, idToken types.IDToken) (API, error) {
 	startSessionPayload, err := json.Marshal(map[string]string{
-		"google_id_token": idToken,
+		"google_id_token": idToken.Value(),
 	})
 	if err != nil {
 		return nil, err
