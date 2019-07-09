@@ -61,3 +61,18 @@ func (mr *MockOAuthClientMockRecorder) PerformAuthCodeExchangeFlow(arg0, arg1 in
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PerformAuthCodeExchangeFlow", reflect.TypeOf((*MockOAuthClient)(nil).PerformAuthCodeExchangeFlow), arg0, arg1)
 }
+
+// PerformRefreshFlow mocks base method
+func (m *MockOAuthClient) PerformRefreshFlow(arg0 context.Context, arg1 string) (*RefreshedToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PerformRefreshFlow", arg0, arg1)
+	ret0, _ := ret[0].(*RefreshedToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PerformRefreshFlow indicates an expected call of PerformRefreshFlow
+func (mr *MockOAuthClientMockRecorder) PerformRefreshFlow(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PerformRefreshFlow", reflect.TypeOf((*MockOAuthClient)(nil).PerformRefreshFlow), arg0, arg1)
+}

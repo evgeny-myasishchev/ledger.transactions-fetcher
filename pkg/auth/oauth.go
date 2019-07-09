@@ -24,6 +24,11 @@ type AccessToken struct {
 	IDToken      string `json:"id_token"`
 }
 
+// RefreshedToken represents refreshed token data
+type RefreshedToken struct {
+	IDToken string `json:"id_token"`
+}
+
 // ExtractIDTokenDetails will decode an ID token and get it's details
 func (at *AccessToken) ExtractIDTokenDetails() (*IDTokenDetails, error) {
 	parts := strings.Split(at.IDToken, ".")
@@ -42,6 +47,7 @@ func (at *AccessToken) ExtractIDTokenDetails() (*IDTokenDetails, error) {
 type OAuthClient interface {
 	BuildCodeGrantURL() string
 	PerformAuthCodeExchangeFlow(ctx context.Context, code string) (*AccessToken, error)
+	PerformRefreshFlow(ctx context.Context, refreshToken string) (*RefreshedToken, error)
 }
 
 type googleOAuthClient struct {
@@ -76,6 +82,10 @@ func (c *googleOAuthClient) PerformAuthCodeExchangeFlow(ctx context.Context, cod
 		return nil, errors.Wrap(err, "Failed to get access token")
 	}
 	return &accessToken, nil
+}
+
+func (c *googleOAuthClient) PerformRefreshFlow(ctx context.Context, refreshToken string) (*RefreshedToken, error) {
+	return nil, nil
 }
 
 // GoogleOAuthOpt represents options for google oauth client
