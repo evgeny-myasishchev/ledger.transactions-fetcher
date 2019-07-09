@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bxcodec/faker/v3"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/types"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +20,7 @@ func init() {
 func randomAccessToken() *AuthTokenDTO {
 	return &AuthTokenDTO{
 		Email:        faker.Email(),
-		IDToken:      "idt-" + faker.Word(),
+		IDToken:      types.IDToken("idt-" + faker.Word()),
 		RefreshToken: "rt-" + faker.Word(),
 	}
 }

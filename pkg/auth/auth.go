@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/types"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
@@ -15,7 +16,7 @@ var logger = diag.CreateLogger()
 // Service is an auth service abstraction
 type Service interface {
 	RegisterUser(ctx context.Context, oauthCode string) error
-	FetchAuthToken(ctx context.Context, email string) (string, error)
+	FetchAuthToken(ctx context.Context, email string) (types.IDToken, error)
 }
 
 type service struct {
@@ -36,12 +37,12 @@ func (svc *service) RegisterUser(ctx context.Context, oauthCode string) error {
 	logger.Debug(ctx, "Got token for user %v, saving", idTokenDetails.Email)
 	return svc.storage.SaveAuthToken(ctx, &dal.AuthTokenDTO{
 		Email:        idTokenDetails.Email,
-		IDToken:      accessToken.IDToken.Value(),
+		IDToken:      accessToken.IDToken,
 		RefreshToken: accessToken.RefreshToken,
 	})
 }
 
-func (svc *service) FetchAuthToken(ctx context.Context, email string) (string, error) {
+func (svc *service) FetchAuthToken(ctx context.Context, email string) (types.IDToken, error) {
 	// TODO: Refresh expired token
 	token, err := svc.storage.GetAuthTokenByEmail(ctx, email)
 	if err != nil {

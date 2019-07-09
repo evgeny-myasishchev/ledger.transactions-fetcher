@@ -8,6 +8,7 @@ import (
 	"github.com/bxcodec/faker/v3"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 	tst "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/internal/testing"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +27,7 @@ func Test_Service_RegisterUser(t *testing.T) {
 				}
 				accessToken := AccessToken{
 					RefreshToken: "rt-" + faker.Word(),
-					IDToken:      IDToken(idToken),
+					IDToken:      types.IDToken(idToken),
 				}
 				code := "code-" + faker.Word()
 				ctx := context.TODO()
@@ -44,7 +45,7 @@ func Test_Service_RegisterUser(t *testing.T) {
 					EXPECT().
 					SaveAuthToken(ctx, &dal.AuthTokenDTO{
 						Email:        email,
-						IDToken:      accessToken.IDToken.Value(),
+						IDToken:      accessToken.IDToken,
 						RefreshToken: accessToken.RefreshToken,
 					}).
 					Return(nil)
@@ -72,7 +73,7 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 	type testCase struct {
 		fields fields
 		args   args
-		assert func(token string, err error)
+		assert func(token types.IDToken, err error)
 	}
 
 	randomTokenDto := func(t *testing.T, exp int64) *dal.AuthTokenDTO {
@@ -86,7 +87,7 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 		}
 		return &dal.AuthTokenDTO{
 			Email:        email,
-			IDToken:      idToken,
+			IDToken:      types.IDToken(idToken),
 			RefreshToken: "rt-" + faker.Word(),
 		}
 	}
@@ -109,7 +110,7 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 				return &testCase{
 					fields: fields{storage: storage},
 					args:   args{ctx: ctx, email: authToken.Email},
-					assert: func(token string, err error) {
+					assert: func(token types.IDToken, err error) {
 						defer ctrl.Finish()
 						if !assert.NoError(t, err) {
 							return
@@ -119,45 +120,45 @@ func Test_Service_FetchAuthToken(t *testing.T) {
 				}
 			}
 		},
-		// func() (string, tcFn) {
-		// 	return "refresh expired token", func(t *testing.T) *testCase {
-		// 		authToken := randomTokenDto(t, time.Now().Unix()-20)
-		// 		if authToken == nil {
-		// 			return nil
-		// 		}
+		func() (string, tcFn) {
+			return "refresh expired token", func(t *testing.T) *testCase {
+				authToken := randomTokenDto(t, time.Now().Unix()-20)
+				if authToken == nil {
+					return nil
+				}
 
-		// 		refreshedToken := &RefreshedToken{
-		// 			IDToken: "refreshed-token-" + faker.Word(),
-		// 		}
+				refreshedToken := &RefreshedToken{
+					IDToken: "refreshed-token-" + faker.Word(),
+				}
 
-		// 		ctx := context.TODO()
-		// 		ctrl := gomock.NewController(t)
+				ctx := context.TODO()
+				ctrl := gomock.NewController(t)
 
-		// 		storage := NewMockStorage(ctrl)
-		// 		storage.
-		// 			EXPECT().
-		// 			GetAuthTokenByEmail(ctx, authToken.Email).
-		// 			Return(authToken, nil)
+				storage := NewMockStorage(ctrl)
+				storage.
+					EXPECT().
+					GetAuthTokenByEmail(ctx, authToken.Email).
+					Return(authToken, nil)
 
-		// 		oauthClient := NewMockOAuthClient(ctrl)
-		// 		oauthClient.
-		// 			EXPECT().
-		// 			PerformRefreshFlow(ctx, authToken.RefreshToken).
-		// 			Return(refreshedToken, nil)
+				oauthClient := NewMockOAuthClient(ctrl)
+				oauthClient.
+					EXPECT().
+					PerformRefreshFlow(ctx, authToken.RefreshToken).
+					Return(refreshedToken, nil)
 
-		// 		return &testCase{
-		// 			fields: fields{storage: storage, oauthClient: oauthClient},
-		// 			args:   args{ctx: ctx, email: authToken.Email},
-		// 			assert: func(token string, err error) {
-		// 				defer ctrl.Finish()
-		// 				if !assert.NoError(t, err) {
-		// 					return
-		// 				}
-		// 				assert.Equal(t, refreshedToken.IDToken, token)
-		// 			},
-		// 		}
-		// 	}
-		// },
+				return &testCase{
+					fields: fields{storage: storage, oauthClient: oauthClient},
+					args:   args{ctx: ctx, email: authToken.Email},
+					assert: func(token types.IDToken, err error) {
+						defer ctrl.Finish()
+						if !assert.NoError(t, err) {
+							return
+						}
+						assert.Equal(t, refreshedToken.IDToken, token)
+					},
+				}
+			}
+		},
 	}
 	for _, tt := range tests {
 		name, tt := tt()

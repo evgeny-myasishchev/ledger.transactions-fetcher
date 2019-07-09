@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/types"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
 
@@ -12,7 +14,7 @@ var logger = diag.CreateLogger()
 // AuthTokenDTO is a DTO to store user auth token
 type AuthTokenDTO struct {
 	Email        string
-	IDToken      string
+	IDToken      types.IDToken
 	RefreshToken string
 }
 
