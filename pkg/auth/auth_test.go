@@ -3,13 +3,13 @@ package auth
 import (
 	"context"
 	"testing"
-
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 	tst "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/internal/testing"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Service_RegisterUser(t *testing.T) {
@@ -57,5 +57,82 @@ func Test_Service_RegisterUser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt())
+	}
+}
+
+func Test_Service_FetchAuthToken(t *testing.T) {
+	type fields struct {
+		oauthClient OAuthClient
+		storage     dal.Storage
+	}
+	type args struct {
+		ctx   context.Context
+		email string
+	}
+	type testCase struct {
+		fields fields
+		args   args
+		assert func(token string, err error)
+	}
+
+	randomTokenDto := func(t *testing.T) *dal.AuthTokenDTO {
+		email := faker.Email()
+		idToken, err := tst.EncodeUnsignedJWT(t, map[string]interface{}{
+			"email": email,
+			"exp":   time.Now().Unix() + 20,
+		})
+		if !assert.NoError(t, err) {
+			return nil
+		}
+		return &dal.AuthTokenDTO{
+			Email:        email,
+			IDToken:      idToken,
+			RefreshToken: "rt-" + faker.Word(),
+		}
+	}
+
+	type tcFn func(*testing.T) *testCase
+	tests := []func() (string, tcFn){
+		func() (string, tcFn) {
+			return "get the token", func(t *testing.T) *testCase {
+				authToken := randomTokenDto(t)
+				if authToken == nil {
+					return nil
+				}
+				ctx := context.TODO()
+				ctrl := gomock.NewController(t)
+				storage := NewMockStorage(ctrl)
+				storage.
+					EXPECT().
+					GetAuthTokenByEmail(ctx, authToken.Email).
+					Return(authToken, nil)
+				return &testCase{
+					fields: fields{storage: storage},
+					args:   args{ctx: ctx, email: authToken.Email},
+					assert: func(token string, err error) {
+						defer ctrl.Finish()
+						if !assert.NoError(t, err) {
+							return
+						}
+						assert.Equal(t, authToken.IDToken, token)
+					},
+				}
+			}
+		},
+	}
+	for _, tt := range tests {
+		name, tt := tt()
+		t.Run(name, func(t *testing.T) {
+			tt := tt(t)
+			if !assert.NotNil(t, tt) {
+				return
+			}
+			svc := Service(&service{
+				oauthClient: tt.fields.oauthClient,
+				storage:     tt.fields.storage,
+			})
+			got, err := svc.FetchAuthToken(tt.args.ctx, tt.args.email)
+			tt.assert(got, err)
+		})
 	}
 }
