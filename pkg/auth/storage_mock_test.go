@@ -76,3 +76,17 @@ func (mr *MockStorageMockRecorder) SaveAuthToken(ctx, token interface{}) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveAuthToken", reflect.TypeOf((*MockStorage)(nil).SaveAuthToken), ctx, token)
 }
+
+// SavePendingTransaction mocks base method
+func (m *MockStorage) SavePendingTransaction(ctx context.Context, trx *dal.PendingTransactionDTO) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SavePendingTransaction", ctx, trx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SavePendingTransaction indicates an expected call of SavePendingTransaction
+func (mr *MockStorageMockRecorder) SavePendingTransaction(ctx, trx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePendingTransaction", reflect.TypeOf((*MockStorage)(nil).SavePendingTransaction), ctx, trx)
+}
