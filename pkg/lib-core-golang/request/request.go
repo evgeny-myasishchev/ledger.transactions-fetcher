@@ -53,17 +53,26 @@ func (f ReqFactory) WithHeader(key string, value string) ReqFactory {
 	}
 }
 
+func newRequest(method string, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Accept", "*/*")
+	return req, nil
+}
+
 // Get creates a new req factory that creates a get request for given url
 func Get(url string) ReqFactory {
 	return func() (*http.Request, error) {
-		return http.NewRequest("GET", url, nil)
+		return newRequest("GET", url, nil)
 	}
 }
 
 // Post creates a new req factory that creates a post request body
 func Post(reqURL string, contentType string, body io.Reader) ReqFactory {
 	return func() (*http.Request, error) {
-		req, err := http.NewRequest("POST", reqURL, body)
+		req, err := newRequest("POST", reqURL, body)
 		if req != nil {
 			req.Header.Set("Content-Type", contentType)
 		}
@@ -74,7 +83,7 @@ func Post(reqURL string, contentType string, body io.Reader) ReqFactory {
 // PostForm creates a new req factory that creates a post request with form data
 func PostForm(reqURL string, data url.Values) ReqFactory {
 	return func() (*http.Request, error) {
-		req, err := http.NewRequest("POST", reqURL, strings.NewReader(data.Encode()))
+		req, err := newRequest("POST", reqURL, strings.NewReader(data.Encode()))
 		if req != nil {
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		}
