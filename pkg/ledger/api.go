@@ -21,6 +21,7 @@ const (
 // API is an interface to communicate with ledger
 type API interface {
 	ListAccounts(ctx context.Context) ([]AccountDTO, error)
+	ReportPendingTransaction(ctx context.Context, trx PendingTransactionDTO) error
 }
 
 type api struct {
@@ -38,6 +39,19 @@ func (a *api) ListAccounts(ctx context.Context) ([]AccountDTO, error) {
 		return nil, errors.Wrap(err, "Failed to fetch accounts")
 	}
 	return accounts, nil
+}
+
+func (a *api) ReportPendingTransaction(ctx context.Context, trx PendingTransactionDTO) error {
+	body, err := json.Marshal(trx)
+	if err != nil {
+		return err
+	}
+	req := request.Post(a.baseURL+"/pending-transactions", "application/json", bytes.NewReader(body)).
+		WithHeader("Cookie", sessionCookieName+"="+a.session).
+		WithHeader(csrfHeaderName, a.csrfToken)
+	res := request.Do(ctx, req)
+	_, err = res()
+	return err
 }
 
 // APIFactory is a function that creates ledger API instance for given idToken

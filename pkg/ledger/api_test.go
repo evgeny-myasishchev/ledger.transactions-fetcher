@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 
 	"github.com/bxcodec/faker/v3"
@@ -12,6 +13,7 @@ import (
 )
 
 func Test_API_ListAccounts(t *testing.T) {
+	defer gock.Clean()
 	type fields struct {
 		baseURL   string
 		session   string
@@ -84,7 +86,86 @@ func Test_API_ListAccounts(t *testing.T) {
 	}
 }
 
+func Test_API_ReportPendingTransaction(t *testing.T) {
+	defer gock.Clean()
+	type fields struct {
+		baseURL   string
+		session   string
+		csrfToken string
+	}
+	type args struct {
+		trx PendingTransactionDTO
+	}
+	type testCase struct {
+		fields fields
+		args   args
+		assert func()
+	}
+	randTrx := func() PendingTransactionDTO {
+		return PendingTransactionDTO{
+			ID:        faker.Word(),
+			Amount:    faker.Word(),
+			Date:      faker.Word(),
+			Comment:   faker.Word(),
+			AccountID: faker.Word(),
+			TypeID:    uint8(rand.Intn(20)),
+		}
+	}
+	type tcFn func() (string, func(*testing.T) *testCase)
+	tests := []tcFn{
+		func() (string, func(*testing.T) *testCase) {
+			return "report valid data", func(t *testing.T) *testCase {
+				trx := randTrx()
+				body, ok := tst.JSONMarshalToReader(t, trx)
+				if !ok {
+					return nil
+				}
+				fields := fields{
+					baseURL:   "https://my-ledger." + faker.Word() + ".com",
+					session:   "sess-" + faker.Word(),
+					csrfToken: "csrf-token-" + faker.Word(),
+				}
+				gock.New(fields.baseURL).
+					Post("/pending-transactions").
+					MatchHeaders(map[string]string{
+						"Cookie":       sessionCookieName + "=" + fields.session,
+						csrfHeaderName: fields.csrfToken,
+					}).
+					Reply(200).
+					Body(body)
+				return &testCase{
+					fields: fields,
+					args:   args{trx: trx},
+					assert: func() {
+						assert.True(t, gock.IsDone())
+					},
+				}
+			}
+		},
+	}
+	for _, tt := range tests {
+		name, tt := tt()
+		t.Run(name, func(t *testing.T) {
+			tt := tt(t)
+			if t.Failed() {
+				return
+			}
+			a := API(&api{
+				baseURL:   tt.fields.baseURL,
+				session:   tt.fields.session,
+				csrfToken: tt.fields.csrfToken,
+			})
+			err := a.ReportPendingTransaction(context.TODO(), tt.args.trx)
+			if !assert.NoError(t, err) {
+				return
+			}
+			tt.assert()
+		})
+	}
+}
+
 func TestNewAPI(t *testing.T) {
+	defer gock.Clean()
 	type args struct {
 		baseURL string
 		idToken types.IDToken
