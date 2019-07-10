@@ -392,3 +392,58 @@ func Test_sqlStorage_FindNotSyncedTransactions(t *testing.T) {
 		})
 	}
 }
+
+func Test_sqlStorage_PendingTransactionExist(t *testing.T) {
+	type args struct {
+		id string
+	}
+	type testCase struct {
+		args args
+		want bool
+	}
+	type tcFn func(*testing.T, Storage) *testCase
+	tests := []func() (string, tcFn){
+		func() (string, tcFn) {
+			return "true for existing trx", func(t *testing.T, s Storage) *testCase {
+				trx := randTrx()
+				if err := s.SavePendingTransaction(context.Background(), trx); !assert.NoError(t, err) {
+					return nil
+				}
+				return &testCase{
+					args: args{id: trx.ID},
+					want: true,
+				}
+			}
+		},
+		func() (string, tcFn) {
+			return "false for not existing trx", func(t *testing.T, s Storage) *testCase {
+				return &testCase{
+					args: args{id: "not-existing-trx-" + faker.Word()},
+					want: false,
+				}
+			}
+		},
+	}
+	for _, tt := range tests {
+		name, tt := tt()
+		t.Run(name, func(t *testing.T) {
+			db, err := setupMemoryDB(t)
+			if err != nil {
+				return
+			}
+			s := Storage(&sqlStorage{
+				db:    db,
+				nowFn: defaultNowFn,
+			})
+			tt := tt(t, s)
+			if tt == nil {
+				return
+			}
+			got, err := s.PendingTransactionExist(context.Background(), tt.args.id)
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

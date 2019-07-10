@@ -74,12 +74,21 @@ func main() {
 			if err != nil {
 				return err
 			}
-			logger.Debug(ctx, "Saving transaction: {id=%v; amount=%v}", trxDto.ID, trxDto.Amount)
-			if err := storage.SavePendingTransaction(ctx, trxDto); err != nil {
+			exists, err := storage.PendingTransactionExist(ctx, trxDto.ID)
+			if err != nil {
 				return err
 			}
+			if exists {
+				logger.Debug(ctx, "Ignoring previously fetched transaction: {id=%v; amount=%v}", trxDto.ID, trxDto.Amount)
+				continue
+			} else {
+				logger.Debug(ctx, "Saving transaction: {id=%v; amount=%v}", trxDto.ID, trxDto.Amount)
+				if err := storage.SavePendingTransaction(ctx, trxDto); err != nil {
+					return err
+				}
+			}
 		}
-		logger.Info(ctx, "Saved %v transactions", len(transactions))
+		logger.Info(ctx, "Processed %v transactions", len(transactions))
 		return nil
 	})
 

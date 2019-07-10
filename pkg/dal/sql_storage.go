@@ -110,6 +110,18 @@ func (s *sqlStorage) SavePendingTransaction(ctx context.Context, trx *PendingTra
 	return nil
 }
 
+func (s *sqlStorage) PendingTransactionExist(ctx context.Context, id string) (bool, error) {
+	rows := s.db.QueryRowContext(ctx, `
+	SELECT COUNT(1) FROM transactions
+	WHERE id=$1
+	`, id)
+	var count int
+	if err := rows.Scan(&count); err != nil {
+		return false, errors.Wrap(err, "Failed to check if transaction exists")
+	}
+	return count > 0, nil
+}
+
 func (s *sqlStorage) FindNotSyncedTransactions(ctx context.Context, accountID string) ([]PendingTransactionDTO, error) {
 	rows, err := s.db.QueryContext(ctx, `
 	SELECT 
