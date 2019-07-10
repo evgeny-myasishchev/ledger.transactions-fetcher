@@ -32,10 +32,10 @@ CREATE TABLE IF NOT EXISTS users(
 	id_token NTEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS transactions(
-	id nvarchar(255) NOT NULL PRIMARY KEY,
+	id nvarchar(50) NOT NULL PRIMARY KEY,
 	amount nvarchar(255) NOT NULL,
 	date nvarchar(255) NOT NULL,
-	comment nvarchar(255) NOT NULL,
+	comment text NOT NULL,
 	account_id nvarchar(255) NOT NULL,
 	type_id integer(8) NOT NULL,
 	created_at timestamp NOT NULL,
