@@ -124,7 +124,7 @@ func main() {
 
 			return nil
 		}); err != nil {
-			logger.WithError(err).Error(ctx, "Failed to list accounts")
+			logger.WithError(err).Error(ctx, "Failed to sync transactions")
 			os.Exit(1)
 		}
 
