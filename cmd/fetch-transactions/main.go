@@ -74,6 +74,7 @@ func main() {
 			if err != nil {
 				return err
 			}
+			logger.Debug(ctx, "Saving transaction: {id=%v; amount=%v}", trxDto.ID, trxDto.Amount)
 			if err := storage.SavePendingTransaction(ctx, trxDto); err != nil {
 				return err
 			}

@@ -101,7 +101,7 @@ func (stmt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
 	}
 
 	return &dal.PendingTransactionDTO{
-		ID:        base64.RawURLEncoding.EncodeToString(sha1.New().Sum(nil)),
+		ID:        base64.RawURLEncoding.EncodeToString(idHash.Sum(nil)),
 		Comment:   stmt.Description + " (" + stmt.Terminal + ")",
 		AccountID: stmt.ledgerAccountID,
 		Amount:    amount.value,

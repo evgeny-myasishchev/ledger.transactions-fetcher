@@ -59,7 +59,7 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 				panic(err)
 			}
 
-			id := base64.RawURLEncoding.EncodeToString(sha1.New().Sum(nil))
+			id := base64.RawURLEncoding.EncodeToString(idSha1Hash.Sum(nil))
 
 			return "map standard properties", testCase{
 				fields: fields{stmt: stmt},
