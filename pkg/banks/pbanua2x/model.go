@@ -91,11 +91,17 @@ func (stmt *apiStatement) ToDTO() (*dal.PendingTransactionDTO, error) {
 			stmt.Trandate,
 			stmt.Trantime)
 	}
+
+	idParts := []byte(
+		stmt.Appcode + ":" + stmt.Amount + ":" + stmt.Trandate + ":" + stmt.Trantime,
+	)
+	idHash := sha1.New()
+	if _, err := idHash.Write(idParts); err != nil {
+		return nil, errors.Wrap(err, "Failed to generate transaction id")
+	}
+
 	return &dal.PendingTransactionDTO{
-		ID: base64.RawURLEncoding.
-			EncodeToString(sha1.New().Sum([]byte(
-				stmt.Appcode + ":" + stmt.Amount + ":" + stmt.Trandate + ":" + stmt.Trantime,
-			))),
+		ID:        base64.RawURLEncoding.EncodeToString(sha1.New().Sum(nil)),
 		Comment:   stmt.Description + " (" + stmt.Terminal + ")",
 		AccountID: stmt.ledgerAccountID,
 		Amount:    amount.value,

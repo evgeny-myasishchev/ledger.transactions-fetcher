@@ -52,10 +52,14 @@ func Test_apiStatement_ToDTO(t *testing.T) {
 			amountStr := fmt.Sprintf("%.2f", 100+100*rand.Float32())
 			stmt := randStmt(tranTime, amountStr)
 
-			id := base64.RawURLEncoding.
-				EncodeToString(sha1.New().Sum([]byte(
-					stmt.Appcode + ":" + stmt.Amount + ":" + stmt.Trandate + ":" + stmt.Trantime,
-				)))
+			idSha1Hash := sha1.New()
+			if _, err := idSha1Hash.Write([]byte(
+				stmt.Appcode + ":" + stmt.Amount + ":" + stmt.Trandate + ":" + stmt.Trantime,
+			)); !assert.NoError(t, err) {
+				panic(err)
+			}
+
+			id := base64.RawURLEncoding.EncodeToString(sha1.New().Sum(nil))
 
 			return "map standard properties", testCase{
 				fields: fields{stmt: stmt},
