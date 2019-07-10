@@ -90,3 +90,18 @@ func (mr *MockStorageMockRecorder) SavePendingTransaction(ctx, trx interface{}) 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePendingTransaction", reflect.TypeOf((*MockStorage)(nil).SavePendingTransaction), ctx, trx)
 }
+
+// FindNotSyncedTransactions mocks base method
+func (m *MockStorage) FindNotSyncedTransactions(ctx context.Context, accountID string) ([]dal.PendingTransactionDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindNotSyncedTransactions", ctx, accountID)
+	ret0, _ := ret[0].([]dal.PendingTransactionDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindNotSyncedTransactions indicates an expected call of FindNotSyncedTransactions
+func (mr *MockStorageMockRecorder) FindNotSyncedTransactions(ctx, accountID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindNotSyncedTransactions", reflect.TypeOf((*MockStorage)(nil).FindNotSyncedTransactions), ctx, accountID)
+}
