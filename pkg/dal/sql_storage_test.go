@@ -340,12 +340,20 @@ func Test_sqlStorage_FindNotSyncedTransactions(t *testing.T) {
 			return "get not synced transactions", fields{now: now}, func(t *testing.T, s Storage) *testCase {
 				accountID := "acc-" + faker.Word()
 				notSyncedTrxs := []PendingTransactionDTO{
-					*randTrx(withCreatedAt(now), withAccount(accountID), withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC())),
-					*randTrx(withCreatedAt(now), withAccount(accountID), withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC())),
-					*randTrx(withCreatedAt(now), withAccount(accountID), withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC())),
+					*randTrx(withCreatedAt(now), withAccount(accountID)),
+					*randTrx(withCreatedAt(now), withAccount(accountID)),
+					*randTrx(withCreatedAt(now), withAccount(accountID)),
 				}
-				allTrxs := append(notSyncedTrxs, *randTrx(withCreatedAt(now), withAccount(accountID)))
-				allTrxs = append(allTrxs, *randTrx(withCreatedAt(now), withAccount(accountID)))
+				allTrxs := append(notSyncedTrxs, *randTrx(
+					withCreatedAt(now),
+					withAccount(accountID),
+					withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC()),
+				))
+				allTrxs = append(allTrxs, *randTrx(
+					withCreatedAt(now),
+					withAccount(accountID),
+					withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC()),
+				))
 				for _, trx := range allTrxs {
 					if err := s.SavePendingTransaction(context.TODO(), &trx); !assert.NoError(t, err) {
 						return nil

@@ -115,7 +115,7 @@ func (s *sqlStorage) FindNotSyncedTransactions(ctx context.Context, accountID st
 	SELECT 
 		id, amount, date, comment, account_id, type_id, created_at, synced_at
 	FROM transactions 
-	WHERE account_id=$1 and synced_at IS NOT NULL
+	WHERE account_id=$1 and synced_at IS NULL
 	`, accountID)
 
 	if err != nil {
