@@ -38,4 +38,6 @@ type Storage interface {
 	SaveAuthToken(ctx context.Context, token *AuthTokenDTO) error
 
 	SavePendingTransaction(ctx context.Context, trx *PendingTransactionDTO) error
+
+	FindNotSyncedTransactions(ctx context.Context, accountID string) ([]PendingTransactionDTO, error)
 }

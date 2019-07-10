@@ -25,6 +25,53 @@ func randomAccessToken() *AuthTokenDTO {
 	}
 }
 
+type trxOpt func(*PendingTransactionDTO)
+
+func withAccount(accountID string) trxOpt {
+	return func(dto *PendingTransactionDTO) {
+		dto.AccountID = accountID
+	}
+}
+
+func withCreatedAt(createdAt time.Time) trxOpt {
+	return func(dto *PendingTransactionDTO) {
+		dto.CreatedAt = createdAt
+	}
+}
+
+func withSyncedAt(syncedAt time.Time) trxOpt {
+	return func(dto *PendingTransactionDTO) {
+		dto.SyncedAt = &syncedAt
+	}
+}
+
+func randTrx(opts ...trxOpt) *PendingTransactionDTO {
+	dto := &PendingTransactionDTO{
+		ID:        faker.Word(),
+		Amount:    faker.Word(),
+		Date:      faker.Word(),
+		Comment:   faker.Word(),
+		AccountID: faker.Word(),
+		TypeID:    uint8(rand.Intn(20)),
+	}
+	for _, opt := range opts {
+		opt(dto)
+	}
+	return dto
+}
+
+func setupMemoryDB(t *testing.T) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if !assert.NoError(t, err) {
+		return nil, err
+	}
+	s := Storage(&sqlStorage{db: db})
+	if err := s.Setup(context.TODO()); !assert.NoError(t, err) {
+		return nil, err
+	}
+	return db, nil
+}
+
 func Test_sqlStorage_GetAccessTokenByEmail(t *testing.T) {
 	type args struct {
 		userEmail string
@@ -77,15 +124,12 @@ func Test_sqlStorage_GetAccessTokenByEmail(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt()
 		t.Run(tt.name, func(t *testing.T) {
-			db, err := sql.Open("sqlite3", ":memory:")
-			if !assert.NoError(t, err) {
-				panic(err)
+			db, err := setupMemoryDB(t)
+			if err != nil {
+				return
 			}
 			defer db.Close()
 			s := Storage(&sqlStorage{db: db})
-			if err := s.Setup(context.Background()); !assert.NoError(t, err) {
-				return
-			}
 			if tt.setup != nil {
 				if err := tt.setup(db); !assert.NoError(t, err) {
 					return
@@ -151,15 +195,12 @@ func Test_sqlStorage_SaveAccessToken(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt()
 		t.Run(tt.name, func(t *testing.T) {
-			db, err := sql.Open("sqlite3", ":memory:")
-			if !assert.NoError(t, err) {
-				panic(err)
+			db, err := setupMemoryDB(t)
+			if err != nil {
+				return
 			}
 			defer db.Close()
 			s := Storage(&sqlStorage{db: db})
-			if err := s.Setup(context.TODO()); !assert.NoError(t, err) {
-				return
-			}
 			if tt.setup != nil {
 				if err := tt.setup(s); !assert.NoError(t, err) {
 					return
@@ -179,17 +220,6 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 	type testCase struct {
 		args   args
 		assert func()
-	}
-
-	randTrx := func() *PendingTransactionDTO {
-		return &PendingTransactionDTO{
-			ID:        faker.Word(),
-			Amount:    faker.Word(),
-			Date:      faker.Word(),
-			Comment:   faker.Word(),
-			AccountID: faker.Word(),
-			TypeID:    uint8(rand.Intn(20)),
-		}
 	}
 
 	type ttFn func(*testing.T, *sql.DB) testCase
@@ -228,7 +258,7 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 		func() (string, ttFn) {
 			return "update existing", func(t *testing.T, db *sql.DB) testCase {
 				newTrx := randTrx()
-				s := Storage(&sqlStorage{db: db})
+				s := Storage(&sqlStorage{db: db, nowFn: defaultNowFn})
 				if err := s.SavePendingTransaction(context.TODO(), newTrx); !assert.NoError(t, err) {
 					return testCase{}
 				}
@@ -273,15 +303,12 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 	for _, tt := range tests {
 		name, ttFn := tt()
 		t.Run(name, func(t *testing.T) {
-			db, err := sql.Open("sqlite3", ":memory:")
-			if !assert.NoError(t, err) {
+			db, err := setupMemoryDB(t)
+			if err != nil {
 				return
 			}
 			defer db.Close()
-			s := Storage(&sqlStorage{db: db})
-			if err := s.Setup(context.TODO()); !assert.NoError(t, err) {
-				return
-			}
+			s := Storage(&sqlStorage{db: db, nowFn: defaultNowFn})
 			tt := ttFn(t, db)
 			if t.Failed() {
 				return
@@ -291,6 +318,69 @@ func Test_sqlStorage_SavePendingTransaction(t *testing.T) {
 				return
 			}
 			tt.assert()
+		})
+	}
+}
+
+func Test_sqlStorage_FindNotSyncedTransactions(t *testing.T) {
+	type args struct {
+		accountID string
+	}
+	type fields struct {
+		now time.Time
+	}
+	type testCase struct {
+		args args
+		want []PendingTransactionDTO
+	}
+	type tcFn func(*testing.T, Storage) *testCase
+	tests := []func() (string, fields, tcFn){
+		func() (string, fields, tcFn) {
+			now := time.Unix(faker.UnixTime(), 0).UTC()
+			return "get not synced transactions", fields{now: now}, func(t *testing.T, s Storage) *testCase {
+				accountID := "acc-" + faker.Word()
+				notSyncedTrxs := []PendingTransactionDTO{
+					*randTrx(withCreatedAt(now), withAccount(accountID), withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC())),
+					*randTrx(withCreatedAt(now), withAccount(accountID), withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC())),
+					*randTrx(withCreatedAt(now), withAccount(accountID), withSyncedAt(time.Unix(faker.UnixTime(), 0).UTC())),
+				}
+				allTrxs := append(notSyncedTrxs, *randTrx(withCreatedAt(now), withAccount(accountID)))
+				allTrxs = append(allTrxs, *randTrx(withCreatedAt(now), withAccount(accountID)))
+				for _, trx := range allTrxs {
+					if err := s.SavePendingTransaction(context.TODO(), &trx); !assert.NoError(t, err) {
+						return nil
+					}
+				}
+				return &testCase{
+					args: args{accountID: accountID},
+					want: notSyncedTrxs,
+				}
+			}
+		},
+	}
+	for _, tt := range tests {
+		name, fields, tt := tt()
+		t.Run(name, func(t *testing.T) {
+			db, err := setupMemoryDB(t)
+			if err != nil {
+				return
+			}
+			defer db.Close()
+			s := Storage(&sqlStorage{
+				db: db,
+				nowFn: func() time.Time {
+					return fields.now
+				},
+			})
+			tt := tt(t, s)
+			if tt == nil {
+				return
+			}
+			got, err := s.FindNotSyncedTransactions(context.TODO(), tt.args.accountID)
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.ElementsMatch(t, tt.want, got)
 		})
 	}
 }

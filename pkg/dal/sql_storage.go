@@ -12,8 +12,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type nowFn func() time.Time
+
+func defaultNowFn() time.Time {
+	return time.Now()
+}
+
 type sqlStorage struct {
-	db *sql.DB
+	db    *sql.DB
+	nowFn nowFn
 }
 
 func (s *sqlStorage) Setup(ctx context.Context) error {
@@ -97,10 +104,45 @@ func (s *sqlStorage) SavePendingTransaction(ctx context.Context, trx *PendingTra
 	SET amount=$2, date=$3, comment=$4, account_id=$5, type_id=$6, synced_at=$8
 	`,
 		trx.ID, trx.Amount, trx.Date, trx.Comment,
-		trx.AccountID, trx.TypeID, time.Now(), trx.SyncedAt); err != nil {
+		trx.AccountID, trx.TypeID, s.nowFn().UTC(), trx.SyncedAt); err != nil {
 		return errors.Wrapf(err, "Failed to save transaction: %v, %v (%v)", trx.Amount, trx.Date, trx.Comment)
 	}
 	return nil
+}
+
+func (s *sqlStorage) FindNotSyncedTransactions(ctx context.Context, accountID string) ([]PendingTransactionDTO, error) {
+	rows, err := s.db.QueryContext(ctx, `
+	SELECT 
+		id, amount, date, comment, account_id, type_id, created_at, synced_at
+	FROM transactions 
+	WHERE account_id=$1 and synced_at IS NOT NULL
+	`, accountID)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to query not synced transactions")
+	}
+
+	defer rows.Close()
+
+	trxs := []PendingTransactionDTO{}
+	for rows.Next() {
+		trx := &PendingTransactionDTO{}
+		if err := rows.Scan(
+			&trx.ID,
+			&trx.Amount,
+			&trx.Date,
+			&trx.Comment,
+			&trx.AccountID,
+			&trx.TypeID,
+			&trx.CreatedAt,
+			&trx.SyncedAt,
+		); err != nil {
+			return nil, errors.Wrap(err, "Failed to scan trx")
+		}
+		trxs = append(trxs, *trx)
+	}
+
+	return trxs, nil
 }
 
 // SQLStorageOpt is an option of SQL storage
@@ -115,7 +157,9 @@ func WithSQLDb(db *sql.DB) SQLStorageOpt {
 
 // NewSQLStorage returns an instance of a local storage
 func NewSQLStorage(opts ...SQLStorageOpt) (Storage, error) {
-	storage := &sqlStorage{}
+	storage := &sqlStorage{
+		nowFn: defaultNowFn,
+	}
 	for _, opt := range opts {
 		opt(storage)
 	}
