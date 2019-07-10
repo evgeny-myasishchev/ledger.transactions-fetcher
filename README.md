@@ -21,6 +21,35 @@ go run cmd/auth/*.go -cmd register-user -code "XXX"
 ```
 Where XXX is a code obtained with a previous step
 
+PBANUA2X: Prepare merchant config. Create file config/fetchers/\<email\>.json:
+```
+{
+    "UserID": "<email>",
+    "Merchants": {
+        "<account-id>": {
+            "ID": "<merchant-id>",
+            "Password": "<merchant-password>",
+            "BankAccount": "<bank-account>"
+        }
+    }
+}
+```
+
+Here and below:
+* `<account-id>` is a ledger account id
+
+Fetch transactions:
+
+```
+go run cmd/fetch-transactions/main.go -acc <account-id> -days 5 -user <email> | npx pino-pretty
+```
+
+Sync fetched transactions:
+
+```
+go run cmd/ledger/main.go -cmd sync -user <email> -account <account-id> | npx pino-pretty
+```
+
 ## Dev
 
 ### Generated mocks
