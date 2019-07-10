@@ -108,6 +108,7 @@ func (f *pbanua2xFetcher) Fetch(ctx context.Context, params *banks.FetchParams) 
 	trxs := make([]banks.FetchedTransaction, len(statements))
 	for i, stmt := range statements {
 		stmt := stmt
+		stmt.ledgerAccountID = params.LedgerAccountID
 		trxs[i] = &stmt
 	}
 

@@ -205,7 +205,9 @@ func Test_pbanua2xFetcher_Fetch(t *testing.T) {
 					}
 					assert.Len(t, trxs, len(statements))
 					for i, trx := range trxs {
-						assert.Equal(t, &statements[i], trx)
+						stmt := statements[i]
+						stmt.ledgerAccountID = fetchParams.LedgerAccountID
+						assert.Equal(t, &stmt, trx)
 					}
 				},
 			}
