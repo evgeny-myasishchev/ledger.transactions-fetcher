@@ -108,10 +108,12 @@ var LocalOpts = struct {
 	},
 	WithAppEnv: func(appEnv AppEnv) LocalOpt {
 		return func(s *localSource) {
-			s.configFiles = append(s.configFiles, appEnv.Name+".json")
+			envFileName := appEnv.Name + ".json"
+			s.configFiles = append(s.configFiles, envFileName, "local-"+envFileName)
 			s.defaultService = appEnv.ServiceName
 			if appEnv.Facet != "" {
-				s.configFiles = append(s.configFiles, appEnv.Name+"-"+appEnv.Facet+".json")
+				envFacetFileName := appEnv.Name + "-" + appEnv.Facet + ".json"
+				s.configFiles = append(s.configFiles, envFacetFileName, "local-"+envFacetFileName)
 			}
 		}
 	},
@@ -122,7 +124,10 @@ var LocalOpts = struct {
 func NewLocalSource(opts ...LocalOpt) SourceFactory {
 	return func() (Source, error) {
 		source := &localSource{
-			configFiles: []string{"default.json"},
+			configFiles: []string{
+				"default.json",
+				"local-default.json",
+			},
 		}
 
 		if _, file, _, ok := runtime.Caller(0); ok == true {

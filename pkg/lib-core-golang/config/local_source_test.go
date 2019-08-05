@@ -78,7 +78,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		after  func()
 	}
 
-	configDir := ensureTmpDir("local-source-test")
+	defaultConfigDir := ensureTmpDir("local-source-test")
 	defaultCfg := map[string]interface{}{
 		"key1": fmt.Sprint("default-key1-", faker.Word()),
 		"key2": fmt.Sprint("default-key2-", faker.Word()),
@@ -103,7 +103,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		},
 	}
 
-	writeConfig := func(name string, value interface{}) bool {
+	writeConfig := func(configDir string, name string, value interface{}) bool {
 		buffer, err := json.Marshal(value)
 		if !assert.NoError(t, err) {
 			return false
@@ -116,13 +116,13 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		return true
 	}
 
-	if !writeConfig("default.json", defaultCfg) {
+	if !writeConfig(defaultConfigDir, "default.json", defaultCfg) {
 		return
 	}
-	if !writeConfig("production.json", productionCfg) {
+	if !writeConfig(defaultConfigDir, "production.json", productionCfg) {
 		return
 	}
-	if !writeConfig("production-preprod.json", productionPreprodCfg) {
+	if !writeConfig(defaultConfigDir, "production-preprod.json", productionPreprodCfg) {
 		return
 	}
 
@@ -130,7 +130,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		func() testCase {
 			return testCase{
 				name:   "default config",
-				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir)}},
+				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(defaultConfigDir)}},
 				args: args{
 					params: []param{
 						param{paramID: paramID{key: "key1"}},
@@ -157,7 +157,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 			return testCase{
 				name: "ignore default service",
 				fields: fields{opts: []LocalOpt{
-					LocalOpts.WithDir(configDir),
+					LocalOpts.WithDir(defaultConfigDir),
 					LocalOpts.WithAppEnv(AppEnv{ServiceName: serviceName}),
 					LocalOpts.WithIgnoreDefaultService(),
 				}},
@@ -186,7 +186,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 			return testCase{
 				name: "env specific config",
 				fields: fields{opts: []LocalOpt{
-					LocalOpts.WithDir(configDir),
+					LocalOpts.WithDir(defaultConfigDir),
 					LocalOpts.WithAppEnv(AppEnv{Name: "production"}),
 				}},
 				args: args{
@@ -216,7 +216,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 			return testCase{
 				name: "env flavor specific config",
 				fields: fields{opts: []LocalOpt{
-					LocalOpts.WithDir(configDir),
+					LocalOpts.WithDir(defaultConfigDir),
 					LocalOpts.WithAppEnv(AppEnv{Name: "production", Facet: "preprod"}),
 				}},
 				args: args{
@@ -247,7 +247,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		func() testCase {
 			return testCase{
 				name:   "no error if no such key",
-				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir)}},
+				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(defaultConfigDir)}},
 				args: args{
 					params: []param{
 						param{paramID: paramID{key: "no-key1"}},
@@ -267,7 +267,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		func() testCase {
 			return testCase{
 				name:   "no error if no such nested key",
-				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir)}},
+				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(defaultConfigDir)}},
 				args: args{
 					params: []param{
 						param{paramID: paramID{key: "key2"}},
@@ -287,7 +287,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		func() testCase {
 			return testCase{
 				name:   "error if no default config",
-				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir + "-no-config")}},
+				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(defaultConfigDir + "-no-config")}},
 				args: args{
 					params: []param{param{paramID: paramID{key: "key1"}}},
 				},
@@ -307,7 +307,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 			return testCase{
 				name: "no error if no env specific config",
 				fields: fields{opts: []LocalOpt{
-					LocalOpts.WithDir(configDir),
+					LocalOpts.WithDir(defaultConfigDir),
 					LocalOpts.WithAppEnv(AppEnv{Name: "no-staging", Facet: "no-facet"}),
 				}},
 				args: args{
@@ -344,7 +344,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 					},
 				},
 			}
-			if !writeConfig("custom-environment-variables.json", customEnvVars) {
+			if !writeConfig(defaultConfigDir, "custom-environment-variables.json", customEnvVars) {
 				panic("Failed to write file")
 			}
 			if err := os.Setenv(key1EnvName, key1EnvVal); err != nil {
@@ -357,7 +357,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 			return testCase{
 				name: "env overrides",
 				fields: fields{opts: []LocalOpt{
-					LocalOpts.WithDir(configDir),
+					LocalOpts.WithDir(defaultConfigDir),
 					LocalOpts.WithAppEnv(AppEnv{Name: "production", Facet: "preprod"}),
 				}},
 				args: args{
@@ -382,9 +382,144 @@ func TestLocalSource_GetParameters(t *testing.T) {
 					}, got)
 				},
 				after: func() {
-					os.Remove(path.Join(configDir, "custom-environment-variables.json"))
+					os.Remove(path.Join(defaultConfigDir, "custom-environment-variables.json"))
 					os.Unsetenv(key1EnvName)
 					os.Unsetenv(key3EnvName)
+				},
+			}
+		},
+		func() testCase {
+			defaultOverrides := map[string]interface{}{
+				"key1": fmt.Sprint("overrides-key1-", faker.Word()),
+				"key2": fmt.Sprint("overrides-key2-", faker.Word()),
+				"deeply": map[string]interface{}{
+					"nested": map[string]interface{}{
+						"key3": fmt.Sprint("overrides-key3-", faker.Word()),
+					},
+				},
+			}
+
+			overridesConfigDir := ensureTmpDir("local-source-test-default-overrides")
+			if !writeConfig(overridesConfigDir, "default.json", defaultCfg) {
+				panic("Failed to write config")
+			}
+			if !writeConfig(overridesConfigDir, "local-default.json", defaultOverrides) {
+				panic("Failed to write config")
+			}
+
+			return testCase{
+				name:   "local overrides for default config",
+				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(overridesConfigDir)}},
+				args: args{
+					params: []param{
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
+					},
+				},
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
+					if !assert.NoError(t, err) {
+						return
+					}
+					deeply := defaultOverrides["deeply"].(map[string]interface{})
+					nested := deeply["nested"].(map[string]interface{})
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key1"}:                           defaultOverrides["key1"],
+						paramID{key: "key2"}:                           defaultOverrides["key2"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
+					}, got)
+				},
+			}
+		},
+		func() testCase {
+			envOverrides := map[string]interface{}{
+				"key1": fmt.Sprint("env-overrides-key1-", faker.Word()),
+				"key2": fmt.Sprint("env-overrides-key2-", faker.Word()),
+				"deeply": map[string]interface{}{
+					"nested": map[string]interface{}{
+						"key3": fmt.Sprint("env-overrides-key3-", faker.Word()),
+					},
+				},
+			}
+
+			overridesConfigDir := ensureTmpDir("local-source-test-env-overrides")
+			if !writeConfig(overridesConfigDir, "default.json", defaultCfg) {
+				panic("Failed to write config")
+			}
+			if !writeConfig(overridesConfigDir, "local-production.json", envOverrides) {
+				panic("Failed to write config")
+			}
+
+			return testCase{
+				name: "local overrides for env config",
+				fields: fields{opts: []LocalOpt{
+					LocalOpts.WithAppEnv(AppEnv{Name: "production"}),
+					LocalOpts.WithDir(overridesConfigDir),
+				}},
+				args: args{
+					params: []param{
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
+					},
+				},
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
+					if !assert.NoError(t, err) {
+						return
+					}
+					deeply := envOverrides["deeply"].(map[string]interface{})
+					nested := deeply["nested"].(map[string]interface{})
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key1"}:                           envOverrides["key1"],
+						paramID{key: "key2"}:                           envOverrides["key2"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
+					}, got)
+				},
+			}
+		},
+		func() testCase {
+			envOverrides := map[string]interface{}{
+				"key1": fmt.Sprint("env-facet-overrides-key1-", faker.Word()),
+				"key2": fmt.Sprint("env-facet-overrides-key2-", faker.Word()),
+				"deeply": map[string]interface{}{
+					"nested": map[string]interface{}{
+						"key3": fmt.Sprint("env-facet-overrides-key3-", faker.Word()),
+					},
+				},
+			}
+
+			overridesConfigDir := ensureTmpDir("local-source-test-env-facet-overrides")
+			if !writeConfig(overridesConfigDir, "default.json", defaultCfg) {
+				panic("Failed to write config")
+			}
+			if !writeConfig(overridesConfigDir, "local-production-preprod.json", envOverrides) {
+				panic("Failed to write config")
+			}
+
+			return testCase{
+				name: "local overrides for env facet config",
+				fields: fields{opts: []LocalOpt{
+					LocalOpts.WithAppEnv(AppEnv{Name: "production", Facet: "preprod"}),
+					LocalOpts.WithDir(overridesConfigDir),
+				}},
+				args: args{
+					params: []param{
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
+					},
+				},
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
+					if !assert.NoError(t, err) {
+						return
+					}
+					deeply := envOverrides["deeply"].(map[string]interface{})
+					nested := deeply["nested"].(map[string]interface{})
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key1"}:                           envOverrides["key1"],
+						paramID{key: "key2"}:                           envOverrides["key2"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
+					}, got)
 				},
 			}
 		},
