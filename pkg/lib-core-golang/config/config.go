@@ -3,14 +3,15 @@ package config
 import (
 	"context"
 	"flag"
-	"fmt"
 	"math/rand"
 	"os"
 	"time"
 
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
+	"github.com/pkg/errors"
 
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
 
 const (
@@ -19,12 +20,13 @@ const (
 	facetVar = "APP_ENV_FACET"
 
 	clusterNameVar = "CLUSTER_NAME"
+
+	awsSSMEndpointURLVar          = "AWS_SSM_ENDPOINT_URL"
+	awsSSMEndpointTokenVar        = "AWS_SSM_ENDPOINT_TOKEN"
+	awsSSMEndpointTokenHeaderName = "x-access-token"
 )
 
 var logger = diag.CreateLogger()
-
-// TODO: Generally do logging (maybe even with fmt)
-// to be able to understand some failure cases (like ebad type)
 
 // AppEnv represents app env
 type AppEnv struct {
@@ -81,177 +83,148 @@ func NewAppEnv(serviceName string, opts ...appEnvOpt) AppEnv {
 	}
 }
 
-// ServiceConfig is a service config abstraction
-type ServiceConfig interface {
-	StringParam(key StringParam) StringVal
-	IntParam(key IntParam) IntVal
-	BoolParam(key BoolParam) BoolVal
-}
+// SourceFactory is a func that creates an instance of a source
+type SourceFactory func() (Source, error)
 
 // Source is an abstraction to read params
-// TODO: Make sure to define String() for sources since they're being logged
-// TODO: Refactor to accept context as a first arg
 type Source interface {
-	GetParameters(params []param) (map[param]interface{}, error)
+	GetParameters(ctx context.Context, params []param) (map[paramID]interface{}, error)
 }
 
-type sourceBinding struct {
-	params []param
-	source Source
+type binding struct {
+	sources        map[string]Source
+	paramsBySource map[string][]param
+	refreshSignal  <-chan time.Time
+	onRefreshed    chan struct{}
+	stopSignal     <-chan struct{}
 }
 
-type serviceConfig struct {
-	sources       []sourceBinding
-	values        map[param]paramValue
-	refreshTicker *time.Ticker
-	refreshed     chan bool // TODO: Send only
-	stop          <-chan bool
-}
-
-func (cfg *serviceConfig) getParamValue(key param) paramValue {
-	if val, ok := cfg.values[key]; ok {
-		return val
-	}
-	logger.Error(nil, "Unknown parameter: %v", key)
-	panic(fmt.Sprintf("Unknown parameter: %v", key))
-}
-
-func (cfg *serviceConfig) StringParam(key StringParam) StringVal {
-	return cfg.getParamValue(key).(StringVal)
-}
-func (cfg *serviceConfig) IntParam(key IntParam) IntVal {
-	return cfg.getParamValue(key).(IntVal)
-}
-func (cfg *serviceConfig) BoolParam(key BoolParam) BoolVal {
-	return cfg.getParamValue(key).(BoolVal)
-}
-
-// ServiceConfigOpt represents option of a service config
-type ServiceConfigOpt func(cfg *serviceConfig)
-
-// WithSource will add a source to fetch params from
-func WithSource(source sourceBinding) ServiceConfigOpt {
-	return func(cfg *serviceConfig) {
-		cfg.sources = append(cfg.sources, source)
-	}
-}
-
-// Used mostly for testing
-func withTicker(ticker *time.Ticker) ServiceConfigOpt {
-	return func(cfg *serviceConfig) {
-		cfg.refreshTicker = ticker
-	}
-}
-
-// Used mostly for testing
-func withRefreshed(refreshed chan bool) ServiceConfigOpt {
-	return func(cfg *serviceConfig) {
-		cfg.refreshed = refreshed
-	}
-}
-
-// Used mostly for testing
-func withStop(stop chan bool) ServiceConfigOpt {
-	return func(cfg *serviceConfig) {
-		cfg.stop = stop
-	}
-}
-
-func loadInitialValues(cfg *serviceConfig) error {
-	for _, binding := range cfg.sources {
-		rawValues, err := binding.source.GetParameters(binding.params)
+func (b *binding) loadInitialValues() error {
+	ctx := diag.ContextWithRequestID(context.Background(), uuid.NewV4().String())
+	logger.Info(ctx, "Loading initial config values")
+	for sourceName, source := range b.sources {
+		sourceParams := b.paramsBySource[sourceName]
+		values, err := source.GetParameters(ctx, sourceParams)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to fetch from source %v", sourceName)
 		}
-		for _, param := range binding.params {
-			rawValue, ok := rawValues[param]
+		logger.WithData(diag.MsgData{
+			"params": sourceParams,
+		}).Debug(ctx, "Fetched %v (of %v requested) values from %v source", len(values), len(sourceParams), sourceName)
+		for _, sourceParam := range sourceParams {
+			value, ok := values[sourceParam.paramID]
 			if !ok {
-				return fmt.Errorf("Parameter %v not found", param)
+				return errors.Errorf("Parameter %v not found (source=%v)", sourceParam.paramID, sourceName)
 			}
-			value := param.emptyValue()
-			if err := value.setValue(rawValue); err != nil {
-				return fmt.Errorf("Failed to set value for parameter %v: %v", param, err)
+
+			if err := sourceParam.setValue(value); err != nil {
+				return errors.Wrapf(err, "Failed to set parameter %v value (source=%v)", sourceParam.paramID, sourceName)
 			}
-			cfg.values[param] = value
 		}
 	}
 	return nil
 }
 
-func startRefreshingValues(cfg *serviceConfig) {
-	// TODO: do not refresh local source somehow
-	// Perhaps add option for sourceBinding
-	ctx := diag.ContextWithRequestID(context.Background(), uuid.NewV4().String())
-	logger.Info(ctx, "Starting refreshing params")
+func (b *binding) startRefreshingValues() {
 	go func() {
-		notifyRefreshed := func() {
-			if cfg.refreshed != nil {
-				cfg.refreshed <- true
-			}
+		if b.refreshSignal == nil {
+			rnd := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+
+			// Using rand refresh intervals
+			refreshIntervalSeconds := 60 + rnd.Intn(120)
+
+			logger.Info(nil, "Using %v sec config refresh interval", refreshIntervalSeconds)
+
+			b.refreshSignal = time.NewTicker(time.Duration(refreshIntervalSeconds) * time.Second).C
 		}
-		for {
+
+		shouldLoop := true
+		for shouldLoop {
+			ctx := diag.ContextWithRequestID(context.Background(), uuid.NewV4().String())
 			select {
-			case <-cfg.refreshTicker.C:
-				logger.Debug(ctx, "Refreshing config parameters")
-				for _, binding := range cfg.sources {
-					rawValues, err := binding.source.GetParameters(binding.params)
+			case <-b.refreshSignal:
+				logger.Info(ctx, "Refreshing config parameters")
+				for sourceName, source := range b.sources {
+					sourceParams := b.paramsBySource[sourceName]
+					values, err := source.GetParameters(ctx, sourceParams)
 					if err != nil {
-						logger.WithError(err).Error(ctx, "Failed to fetch params from source %v", binding.source)
+						logger.WithError(err).Error(ctx, "Failed to fetch from source: %v", sourceName)
 						continue
 					}
-
-					for _, param := range binding.params {
-						newVal, ok := rawValues[param]
+					logger.Debug(ctx, "Fetched %v (of %v requested) values from %v source", len(values), len(sourceParams), sourceName)
+					for _, sourceParam := range sourceParams {
+						value, ok := values[sourceParam.paramID]
 						if !ok {
-							logger.Error(ctx, "Missing value for param %v", param)
+							logger.Error(ctx, "Parameter %v not found (source=%v)", sourceParam.paramID, sourceName)
 							continue
 						}
-						if err := cfg.values[param].setValue(newVal); err != nil {
-							logger.WithError(err).Error(ctx, "Failed to refresh param: %v", param)
+
+						if err := sourceParam.setValue(value); err != nil {
+							logger.WithError(err).Error(ctx, "Failed to update parameter %v (source=%v)", sourceParam.paramID, sourceName)
 						}
 					}
 				}
-				notifyRefreshed()
-			case <-cfg.stop:
-				logger.Debug(ctx, "Refresh stopped")
-				break
+				b.onRefreshed <- struct{}{}
+			case <-b.stopSignal:
+				logger.Warn(ctx, "Refresh stopped") //We should not see this on prod
+				shouldLoop = false
 			}
 		}
 	}()
 }
 
-func newServiceConfig(opts ...ServiceConfigOpt) *serviceConfig {
-	cfg := &serviceConfig{
-		sources: []sourceBinding{},
-		values:  map[param]paramValue{},
+// BindOpt represents binding option
+type BindOpt func(b *binding) error
+
+// WithSource is a binding option
+func WithSource(name string, factory SourceFactory) BindOpt {
+	return func(b *binding) error {
+		source, err := factory()
+		if err != nil {
+			return err
+		}
+		b.sources[name] = source
+		return nil
 	}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	if cfg.refreshTicker == nil {
-		rnd := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-
-		// Using rand refresh intervals
-		refreshIntervalSeconds := 60 + rnd.Intn(120)
-
-		logger.Info(nil, "Using %v sec config refresh interval", refreshIntervalSeconds)
-
-		cfg.refreshTicker = time.NewTicker(time.Duration(refreshIntervalSeconds) * time.Second)
-	}
-
-	return cfg
 }
 
-// Load will return the config with given keys
-func Load(opts ...ServiceConfigOpt) (ServiceConfig, error) {
-	cfg := newServiceConfig(opts...)
+func withSignals(refreshSignal <-chan time.Time, onRefreshed chan struct{}, stopSignal <-chan struct{}) BindOpt {
+	return func(b *binding) error {
+		b.refreshSignal = refreshSignal
+		b.onRefreshed = onRefreshed
+		b.stopSignal = stopSignal
+		return nil
+	}
+}
 
-	if err := loadInitialValues(cfg); err != nil {
-		return nil, err
+// Bind will bind the receiver config to sources and refresh values
+func Bind(receiver interface{}, appEnv AppEnv, opts ...BindOpt) error {
+	b := &binding{
+		sources:        map[string]Source{},
+		paramsBySource: map[string][]param{},
 	}
 
-	startRefreshingValues(cfg)
+	for _, opt := range opts {
+		if err := opt(b); err != nil {
+			return errors.Wrap(err, "Failed to process bind option")
+		}
+	}
 
-	return cfg, nil
+	params, err := bindParamsToReceiver(receiver, appEnv.ServiceName)
+	if err != nil {
+		return err
+	}
+
+	for _, param := range params {
+		sourceParams := b.paramsBySource[param.source]
+		b.paramsBySource[param.source] = append(sourceParams, param)
+	}
+
+	if err := b.loadInitialValues(); err != nil {
+		return err
+	}
+
+	b.startRefreshingValues()
+
+	return nil
 }

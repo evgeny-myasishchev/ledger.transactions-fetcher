@@ -10,7 +10,6 @@ import (
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth"
 
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/config"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/diag"
 )
 
@@ -40,10 +39,14 @@ func main() {
 
 	ctx := context.Background()
 
-	appCfg := config.LoadAppConfig()
+	appCfg, err := app.LoadConfig()
+	if err != nil {
+		logger.WithError(err).Error(ctx, "Failed to load app config")
+		os.Exit(1)
+	}
 
 	diag.SetupLoggingSystem(func(setup diag.LoggingSystemSetup) {
-		setup.SetLogLevel(appCfg.Log.Level.Value())
+		setup.SetLogLevel(appCfg.Log.Level)
 	})
 
 	injector := app.BootstrapServices(appCfg)

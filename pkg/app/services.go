@@ -19,11 +19,11 @@ import (
 type Injector func(function interface{}) error
 
 // BootstrapServices setup di container with all app services
-func BootstrapServices(appCfg *config.AppConfig) Injector {
+func BootstrapServices(appCfg *config.Config) Injector {
 	c := dig.New()
 
 	c.Provide(func() (*sql.DB, error) {
-		return sql.Open(appCfg.Storage.Driver.Value(), appCfg.Storage.DSN.Value())
+		return sql.Open(appCfg.Storage.Driver, appCfg.Storage.DSN)
 	})
 
 	c.Provide(func(db *sql.DB) (dal.Storage, error) {
@@ -32,8 +32,8 @@ func BootstrapServices(appCfg *config.AppConfig) Injector {
 
 	c.Provide(func() auth.OAuthClient {
 		return auth.NewGoogleOAuthClient(auth.WithClientSecrets(
-			appCfg.Google.ClientID.Value(),
-			appCfg.Google.ClientSecret.Value(),
+			appCfg.Google.ClientID,
+			appCfg.Google.ClientSecret,
 		))
 	})
 
@@ -45,7 +45,7 @@ func BootstrapServices(appCfg *config.AppConfig) Injector {
 	})
 
 	c.Provide(func() banks.FetcherConfig {
-		return banks.NewFSFetcherConfig(appCfg.FetcherConfig.ConfigDir.Value())
+		return banks.NewFSFetcherConfig(appCfg.FetcherConfig.ConfigDir)
 	})
 
 	return func(function interface{}) error {

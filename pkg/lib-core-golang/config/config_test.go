@@ -1,31 +1,33 @@
 package config
 
 import (
-	"errors"
+	"context"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/bxcodec/faker/v3"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 type mockSource struct {
-	err        error
-	parameters map[param]interface{}
-	mock.Mock
+	err    error
+	values map[string]interface{}
 }
 
-func (s *mockSource) GetParameters(params []param) (map[param]interface{}, error) {
-	if len(s.ExpectedCalls) > 0 {
-		args := s.Called(params)
-		return args.Get(0).(map[param]interface{}), args.Error(1)
+func (s *mockSource) GetParameters(ctx context.Context, params []param) (map[paramID]interface{}, error) {
+	if s.err != nil {
+		return nil, s.err
 	}
-	return s.parameters, s.err
+	result := map[paramID]interface{}{}
+	for key, val := range s.values {
+		result[paramID{key: key}] = val
+	}
+	return result, nil
 }
 
 func TestNewAppEnv(t *testing.T) {
@@ -49,7 +51,11 @@ func TestNewAppEnv(t *testing.T) {
 						return nil
 					})},
 				},
-				want: AppEnv{Name: "dev", ServiceName: serviceName},
+				want: AppEnv{
+					Name:        "dev",
+					Facet:       os.Getenv("APP_ENV_FACET"),
+					ServiceName: serviceName,
+				},
 			}
 		},
 		func() testCase {
@@ -114,369 +120,250 @@ func TestNewAppEnv(t *testing.T) {
 	}
 }
 
-func TestLoadInitialValues(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
+func TestBind(t *testing.T) {
 	type args struct {
-		sources []sourceBinding
+		receiver interface{}
+		opts     []BindOpt
 	}
-	type testCase struct {
-		name   string
-		args   args
-		assert func(t *testing.T, cfg ServiceConfig, err error)
+
+	type params1 struct {
+		Val1 string `config:"key=val11"`
+		Val2 string `config:"key=val12"`
 	}
-	tests := []func() testCase{
-		func() testCase {
-			intParam1 := newIntParam("int1-param-"+faker.Word(), "")
-			intParam2 := newIntParam("int2-param-"+faker.Word(), "")
-			strParam1 := newStringParam("str1-param-"+faker.Word(), "")
-			strParam2 := newStringParam("str2-param-"+faker.Word(), "")
-			boolParam1 := newBoolParam("bool1-param-"+faker.Word(), "")
-			boolParam2 := newBoolParam("bool2-param-"+faker.Word(), "")
 
-			initialParams1 := map[param]interface{}{
-				intParam1:  rand.Int(),
-				strParam1:  faker.Word(),
-				boolParam1: rand.Intn(2) == 1,
-			}
-			initialParams2 := map[param]interface{}{
-				intParam2:  rand.Int(),
-				strParam2:  faker.Word(),
-				boolParam2: rand.Intn(2) == 1,
-			}
-			source1 := sourceBinding{
-				params: []param{intParam1, strParam1, boolParam1},
-				source: &mockSource{parameters: initialParams1},
-			}
-			source2 := sourceBinding{
-				params: []param{intParam2, strParam2, boolParam2},
-				source: &mockSource{parameters: initialParams2},
-			}
+	type params2 struct {
+		Val1 string `config:"key=val21"`
+		Val2 string `config:"key=val22"`
+	}
 
-			return testCase{
-				name: "load and init params",
-				args: args{
-					sources: []sourceBinding{source1, source2},
-				},
-				assert: func(t *testing.T, cfg ServiceConfig, err error) {
-					if !assert.NoError(t, err) {
-						return
-					}
-					assert.Equal(t, initialParams1[intParam1], cfg.IntParam(intParam1).Value())
-					assert.Equal(t, initialParams1[strParam1], cfg.StringParam(strParam1).Value())
-					assert.Equal(t, initialParams1[boolParam1], cfg.BoolParam(boolParam1).Value())
+	type config struct {
+		P1 *params1 `config:"source=src1"`
+		P2 *params2 `config:"source=src2"`
+	}
 
-					assert.Equal(t, initialParams2[intParam2], cfg.IntParam(intParam2).Value())
-					assert.Equal(t, initialParams2[strParam2], cfg.StringParam(strParam2).Value())
-					assert.Equal(t, initialParams2[boolParam2], cfg.BoolParam(boolParam2).Value())
-				},
+	type mockSourceOpt func(src *mockSource)
+	newMockSource := func(values map[string]interface{}, opts ...mockSourceOpt) SourceFactory {
+		return func() (Source, error) {
+			src := &mockSource{
+				values: values,
+			}
+			for _, opt := range opts {
+				opt(src)
+			}
+			return src, nil
+		}
+	}
+
+	type testCase func(*testing.T) error
+	tests := []func() (string, testCase){
+		func() (string, testCase) {
+			return "initial values", func(t *testing.T) error {
+				values1 := map[string]interface{}{
+					"val11": "val-11-" + faker.Word(),
+					"val12": "val-12-" + faker.Word(),
+				}
+				values2 := map[string]interface{}{
+					"val21": "val-21-" + faker.Word(),
+					"val22": "val-22-" + faker.Word(),
+				}
+				var cfg config
+				if err := Bind(&cfg, AppEnv{},
+					WithSource("src1", newMockSource(values1)),
+					WithSource("src2", newMockSource(values2)),
+				); err != nil {
+					return err
+				}
+				if !assert.NotNil(t, cfg.P1) || !assert.NotNil(t, cfg.P2) {
+					return nil
+				}
+				assert.Equal(t, cfg.P1.Val1, values1["val11"])
+				assert.Equal(t, cfg.P1.Val2, values1["val12"])
+				assert.Equal(t, cfg.P2.Val1, values2["val21"])
+				assert.Equal(t, cfg.P2.Val2, values2["val22"])
+				return nil
 			}
 		},
-		func() testCase {
-			intParam1 := newIntParam("int1-param-"+faker.Word(), "")
-			strParam1 := newStringParam("str1-param-"+faker.Word(), "")
-
-			initialParams1 := map[param]interface{}{
-				intParam1: rand.Int(),
-			}
-			source1 := sourceBinding{
-				params: []param{intParam1, strParam1},
-				source: &mockSource{parameters: initialParams1},
-			}
-
-			return testCase{
-				name: "fail if requested params are missing",
-				args: args{sources: []sourceBinding{source1}},
-				assert: func(t *testing.T, cfg ServiceConfig, err error) {
-					if !assert.Error(t, err) {
-						return
-					}
-					assert.EqualError(t, err, fmt.Sprintf("Parameter %v not found", strParam1))
-				},
+		func() (string, testCase) {
+			return "fail if no initial values", func(t *testing.T) error {
+				values1 := map[string]interface{}{"val11": "val-11-" + faker.Word()}
+				var cfg config
+				err := Bind(&cfg, AppEnv{}, WithSource("src1", newMockSource(values1)))
+				if !assert.Error(t, err) {
+					return nil
+				}
+				assert.EqualError(t, err, fmt.Sprintf("Parameter %v not found (source=%v)", paramID{key: "val12"}, "src1"))
+				return nil
 			}
 		},
-		func() testCase {
-			intParam1 := newIntParam("int1-param-"+faker.Word(), "")
-			strParam1 := newStringParam("str1-param-"+faker.Word(), "")
-
-			badInt := faker.Word()
-			initialParams1 := map[param]interface{}{
-				intParam1: badInt,
-				strParam1: faker.Word(),
-			}
-			source1 := sourceBinding{
-				params: []param{intParam1, strParam1},
-				source: &mockSource{parameters: initialParams1},
-			}
-
-			return testCase{
-				name: "fail if some params are of a bad type",
-				args: args{sources: []sourceBinding{source1}},
-				assert: func(t *testing.T, cfg ServiceConfig, err error) {
-					if !assert.Error(t, err) {
-						return
-					}
-					assert.EqualError(t, err, fmt.Sprintf("Failed to set value for parameter %v: Expected int value but got: %v(%[2]T)", intParam1, badInt))
-				},
+		func() (string, testCase) {
+			return "load initial fail if source factory fails", func(t *testing.T) error {
+				wantErr := errors.New(faker.Sentence())
+				var cfg config
+				err := Bind(&cfg, AppEnv{}, WithSource("src", func() (Source, error) {
+					return nil, wantErr
+				}))
+				assert.Equal(t, wantErr, errors.Cause(err))
+				return nil
 			}
 		},
-		func() testCase {
-			intParam1 := newIntParam("int1-param-"+faker.Word(), "")
-			strParam1 := newStringParam("str1-param-"+faker.Word(), "")
-
-			sourceErr := fmt.Errorf("Failed to get params: %v", faker.Word())
-			source1 := sourceBinding{
-				params: []param{intParam1, strParam1},
-				source: &mockSource{err: sourceErr},
-			}
-
-			return testCase{
-				name: "fail if source failed",
-				args: args{sources: []sourceBinding{source1}},
-				assert: func(t *testing.T, cfg ServiceConfig, err error) {
-					if !assert.Error(t, err) {
-						return
-					}
-					assert.EqualError(t, err, sourceErr.Error())
-				},
+		func() (string, testCase) {
+			return "load initial fail if source fails", func(t *testing.T) error {
+				wantErr := errors.New(faker.Sentence())
+				var cfg config
+				err := Bind(&cfg, AppEnv{}, WithSource("src", func() (Source, error) {
+					return &mockSource{err: wantErr}, nil
+				}))
+				assert.Equal(t, wantErr, errors.Cause(err))
+				return nil
 			}
 		},
-		func() testCase {
-			intParam1 := newIntParam("int1-param-"+faker.Word(), "")
-			strParam1 := newStringParam("str1-param-"+faker.Word(), "")
-			boolParam1 := newBoolParam("bool1-param-"+faker.Word(), "")
-
-			source1 := sourceBinding{
-				params: []param{},
-				source: &mockSource{parameters: map[param]interface{}{}},
+		func() (string, testCase) {
+			return "load initial fails if bad value", func(t *testing.T) error {
+				values1 := map[string]interface{}{"val11": 100, "val12": "val-12-" + faker.Word()}
+				values2 := map[string]interface{}{"val21": "val-21-" + faker.Word(), "val22": "val-22-" + faker.Word()}
+				var cfg config
+				err := Bind(&cfg, AppEnv{},
+					WithSource("src1", newMockSource(values1)),
+					WithSource("src2", newMockSource(values2)),
+				)
+				if !assert.Error(t, err) {
+					return nil
+				}
+				assert.EqualError(t, errors.Cause(err), "Expected string value but got: 100(int)")
+				return nil
 			}
-
-			return testCase{
-				name: "panic if getting not existing param",
-				args: args{sources: []sourceBinding{source1}},
-				assert: func(t *testing.T, cfg ServiceConfig, err error) {
-					if !assert.NoError(t, err) {
-						return
-					}
-					assert.PanicsWithValue(t, fmt.Sprintf("Unknown parameter: %v", intParam1), func() {
-						cfg.IntParam(intParam1)
-					})
-					assert.PanicsWithValue(t, fmt.Sprintf("Unknown parameter: %v", strParam1), func() {
-						cfg.StringParam(strParam1)
-					})
-					assert.PanicsWithValue(t, fmt.Sprintf("Unknown parameter: %v", boolParam1), func() {
-						cfg.BoolParam(boolParam1)
-					})
-				},
+		},
+		func() (string, testCase) {
+			return "refresh values", func(t *testing.T) error {
+				values1 := map[string]interface{}{"val11": "val-11-" + faker.Word(), "val12": "val-12-" + faker.Word()}
+				values2 := map[string]interface{}{"val21": "val-21-" + faker.Word(), "val22": "val-22-" + faker.Word()}
+				refreshSignal := make(chan time.Time)
+				onRefreshed := make(chan struct{})
+				stopSignal := make(chan struct{})
+				defer func() {
+					stopSignal <- struct{}{}
+				}()
+				var cfg config
+				if err := Bind(&cfg, AppEnv{},
+					WithSource("src1", newMockSource(values1)),
+					WithSource("src2", newMockSource(values2)),
+					withSignals(refreshSignal, onRefreshed, stopSignal),
+				); err != nil {
+					return err
+				}
+				if !assert.NotNil(t, cfg.P1) || !assert.NotNil(t, cfg.P2) {
+					return nil
+				}
+				values1["val11"] = "updated-val11-" + faker.Word()
+				values2["val22"] = "updated-val22-" + faker.Word()
+				refreshSignal <- time.Now()
+				<-onRefreshed
+				assert.Equal(t, cfg.P1.Val1, values1["val11"])
+				assert.Equal(t, cfg.P2.Val2, values2["val22"])
+				return nil
+			}
+		},
+		func() (string, testCase) {
+			return "refresh values from other sources if source fails", func(t *testing.T) error {
+				values1 := map[string]interface{}{"val11": "val-11-" + faker.Word(), "val12": "val-12-" + faker.Word()}
+				values2 := map[string]interface{}{"val21": "val-21-" + faker.Word(), "val22": "val-22-" + faker.Word()}
+				refreshSignal := make(chan time.Time)
+				onRefreshed := make(chan struct{})
+				stopSignal := make(chan struct{})
+				defer func() {
+					stopSignal <- struct{}{}
+				}()
+				var cfg config
+				var src1 *mockSource
+				if err := Bind(&cfg, AppEnv{},
+					WithSource("src1", newMockSource(values1, func(s *mockSource) {
+						src1 = s
+					})),
+					WithSource("src2", newMockSource(values2)),
+					withSignals(refreshSignal, onRefreshed, stopSignal),
+				); err != nil {
+					return err
+				}
+				if !assert.NotNil(t, cfg.P1) || !assert.NotNil(t, cfg.P2) {
+					return nil
+				}
+				values2["val22"] = "updated-val22-" + faker.Word()
+				src1.err = errors.New(faker.Sentence())
+				refreshSignal <- time.Now()
+				<-onRefreshed
+				assert.Equal(t, cfg.P2.Val2, values2["val22"])
+				return nil
+			}
+		},
+		func() (string, testCase) {
+			return "refresh values ignore missing values", func(t *testing.T) error {
+				initialVal11 := "val-11-" + faker.Word()
+				values1 := map[string]interface{}{"val11": initialVal11, "val12": "val-12-" + faker.Word()}
+				values2 := map[string]interface{}{"val21": "val-21-" + faker.Word(), "val22": "val-22-" + faker.Word()}
+				refreshSignal := make(chan time.Time)
+				onRefreshed := make(chan struct{})
+				stopSignal := make(chan struct{})
+				defer func() {
+					stopSignal <- struct{}{}
+				}()
+				var cfg config
+				if err := Bind(&cfg, AppEnv{},
+					WithSource("src1", newMockSource(values1)),
+					WithSource("src2", newMockSource(values2)),
+					withSignals(refreshSignal, onRefreshed, stopSignal),
+				); err != nil {
+					return err
+				}
+				if !assert.NotNil(t, cfg.P1) || !assert.NotNil(t, cfg.P2) {
+					return nil
+				}
+				delete(values1, "val11")
+				values1["val12"] = "updated-val12-" + faker.Word()
+				refreshSignal <- time.Now()
+				<-onRefreshed
+				assert.Equal(t, initialVal11, cfg.P1.Val1)
+				assert.Equal(t, cfg.P1.Val2, values1["val12"])
+				return nil
+			}
+		},
+		func() (string, testCase) {
+			return "refresh values ignore bad values", func(t *testing.T) error {
+				initialVal11 := "val-11-" + faker.Word()
+				values1 := map[string]interface{}{"val11": initialVal11, "val12": "val-12-" + faker.Word()}
+				values2 := map[string]interface{}{"val21": "val-21-" + faker.Word(), "val22": "val-22-" + faker.Word()}
+				refreshSignal := make(chan time.Time)
+				onRefreshed := make(chan struct{})
+				stopSignal := make(chan struct{})
+				defer func() {
+					stopSignal <- struct{}{}
+				}()
+				var cfg config
+				if err := Bind(&cfg, AppEnv{},
+					WithSource("src1", newMockSource(values1)),
+					WithSource("src2", newMockSource(values2)),
+					withSignals(refreshSignal, onRefreshed, stopSignal),
+				); err != nil {
+					return err
+				}
+				if !assert.NotNil(t, cfg.P1) || !assert.NotNil(t, cfg.P2) {
+					return nil
+				}
+				values1["val11"] = 100
+				values1["val12"] = "updated-val12-" + faker.Word()
+				refreshSignal <- time.Now()
+				<-onRefreshed
+				assert.Equal(t, initialVal11, cfg.P1.Val1)
+				assert.Equal(t, cfg.P1.Val2, values1["val12"])
+				return nil
 			}
 		},
 	}
 	for _, tt := range tests {
-		tt := tt()
-		t.Run(tt.name, func(t *testing.T) {
-			opts := make([]ServiceConfigOpt, 0, len(tt.args.sources))
-			for _, source := range tt.args.sources {
-				opts = append(opts, WithSource(source))
-			}
-			cfg := newServiceConfig(opts...)
-			err := loadInitialValues(cfg)
-			tt.assert(t, cfg, err)
-		})
-	}
-}
-
-func TestRefresh(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
-	type args struct {
-		sources []sourceBinding
-	}
-	type testCase struct {
-		name   string
-		args   args
-		assert func(t *testing.T, refresh func(), cfg ServiceConfig)
-	}
-
-	tests := []func() testCase{
-		func() testCase {
-			param11 := newStringParam("param11-"+faker.Word(), "")
-			param12 := newStringParam("param12-"+faker.Word(), "")
-			param21 := newStringParam("param21-"+faker.Word(), "")
-			param22 := newStringParam("param22-"+faker.Word(), "")
-
-			params1 := map[param]interface{}{
-				param11: "initial-val11-" + faker.Word(),
-				param12: "initial-val12-" + faker.Word(),
-			}
-			params2 := map[param]interface{}{
-				param21: "initial-val21-" + faker.Word(),
-				param22: "initial-val22-" + faker.Word(),
-			}
-			source1 := sourceBinding{
-				params: []param{param11, param12},
-				source: &mockSource{parameters: params1},
-			}
-			source2 := sourceBinding{
-				params: []param{param21, param22},
-				source: &mockSource{parameters: params2},
-			}
-			return testCase{
-				name: "refresh values from bound sources",
-				args: args{
-					sources: []sourceBinding{source1, source2},
-				},
-				assert: func(t *testing.T, refresh func(), cfg ServiceConfig) {
-					params1[param11] = "new-val11-" + faker.Word()
-					params1[param12] = "new-val12-" + faker.Word()
-					params2[param21] = "new-val21-" + faker.Word()
-					params2[param22] = "new-val22-" + faker.Word()
-					refresh()
-					assert.Equal(t, params1[param11], cfg.StringParam(param11).Value())
-					assert.Equal(t, params1[param12], cfg.StringParam(param12).Value())
-					assert.Equal(t, params2[param21], cfg.StringParam(param21).Value())
-					assert.Equal(t, params2[param22], cfg.StringParam(param22).Value())
-				},
-			}
-		},
-		func() testCase {
-			param11 := newStringParam("param11-"+faker.Word(), "")
-			param12 := newIntParam("param12-"+faker.Word(), "")
-			param21 := newStringParam("param21-"+faker.Word(), "")
-			param22 := newStringParam("param22-"+faker.Word(), "")
-
-			param12InitialVal := rand.Int()
-			params1 := map[param]interface{}{
-				param11: "initial-val11-" + faker.Word(),
-				param12: param12InitialVal,
-			}
-			params2 := map[param]interface{}{
-				param21: "initial-val21-" + faker.Word(),
-				param22: "initial-val22-" + faker.Word(),
-			}
-			source1 := sourceBinding{
-				params: []param{param11, param12},
-				source: &mockSource{parameters: params1},
-			}
-			source2 := sourceBinding{
-				params: []param{param21, param22},
-				source: &mockSource{parameters: params2},
-			}
-			return testCase{
-				name: "ignore refresh errors of individual params",
-				args: args{
-					sources: []sourceBinding{source1, source2},
-				},
-				assert: func(t *testing.T, refresh func(), cfg ServiceConfig) {
-					params1[param11] = "new-val11-" + faker.Word()
-					params1[param12] = "new-val12-" + faker.Word()
-					params2[param21] = "new-val21-" + faker.Word()
-					params2[param22] = "new-val22-" + faker.Word()
-					refresh()
-					assert.Equal(t, params1[param11], cfg.StringParam(param11).Value())
-					assert.Equal(t, param12InitialVal, cfg.IntParam(param12).Value())
-					assert.Equal(t, params2[param21], cfg.StringParam(param21).Value())
-					assert.Equal(t, params2[param22], cfg.StringParam(param22).Value())
-				},
-			}
-		},
-		func() testCase {
-			param11 := newStringParam("param11-"+faker.Word(), "")
-			param21 := newStringParam("param21-"+faker.Word(), "")
-			param22 := newStringParam("param22-"+faker.Word(), "")
-
-			params1 := map[param]interface{}{
-				param11: "initial-val11-" + faker.Word(),
-			}
-			params2 := map[param]interface{}{
-				param21: "initial-val21-" + faker.Word(),
-				param22: "initial-val22-" + faker.Word(),
-			}
-			mockSrc1 := &mockSource{parameters: params1}
-			source1 := sourceBinding{
-				params: []param{param11},
-				source: mockSrc1,
-			}
-			source2 := sourceBinding{
-				params: []param{param21, param22},
-				source: &mockSource{parameters: params2},
-			}
-			return testCase{
-				name: "should try next source if refreshing failed",
-				args: args{
-					sources: []sourceBinding{source1, source2},
-				},
-				assert: func(t *testing.T, refresh func(), cfg ServiceConfig) {
-					params2[param21] = "new-val21-" + faker.Word()
-					params2[param22] = "new-val22-" + faker.Word()
-
-					mockSrc1.On("GetParameters", mock.Anything).
-						Return(map[param]interface{}{}, errors.New(faker.Sentence()))
-					refresh()
-					assert.Equal(t, params1[param11], cfg.StringParam(param11).Value())
-					assert.Equal(t, params2[param21], cfg.StringParam(param21).Value())
-					assert.Equal(t, params2[param22], cfg.StringParam(param22).Value())
-				},
-			}
-		},
-		func() testCase {
-			param11 := newStringParam("param11-"+faker.Word(), "")
-			param21 := newStringParam("param21-"+faker.Word(), "")
-
-			param11Val := "initial-val11-" + faker.Word()
-			params1 := map[param]interface{}{param11: param11Val}
-			params2 := map[param]interface{}{
-				param21: "initial-val21-" + faker.Word(),
-			}
-			mockSrc1 := &mockSource{parameters: params1}
-			source1 := sourceBinding{
-				params: []param{param11},
-				source: mockSrc1,
-			}
-			source2 := sourceBinding{
-				params: []param{param21},
-				source: &mockSource{parameters: params2},
-			}
-			return testCase{
-				name: "ignore missing params",
-				args: args{
-					sources: []sourceBinding{source1, source2},
-				},
-				assert: func(t *testing.T, refresh func(), cfg ServiceConfig) {
-					delete(params1, param11)
-					params2[param21] = "new-val21-" + faker.Word()
-					refresh()
-					assert.Equal(t, param11Val, cfg.StringParam(param11).Value())
-					assert.Equal(t, params2[param21], cfg.StringParam(param21).Value())
-				},
-			}
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt()
-		t.Run(tt.name, func(t *testing.T) {
-			refreshChannel := make(chan time.Time)
-			refreshed := make(chan bool)
-			stop := make(chan bool)
-			opts := make([]ServiceConfigOpt, 0, len(tt.args.sources)+1)
-			for _, source := range tt.args.sources {
-				opts = append(opts, WithSource(source))
-			}
-			opts = append(opts,
-				withTicker(&time.Ticker{C: refreshChannel}),
-				withRefreshed(refreshed),
-				withStop(stop),
-			)
-			defer func() {
-				stop <- true
-			}()
-			cfg, err := Load(opts...)
-			if !assert.NoError(t, err) {
+		name, tt := tt()
+		t.Run(name, func(t *testing.T) {
+			if err := tt(t); !assert.NoError(t, err) {
 				return
 			}
-			refreshFn := func() {
-				refreshChannel <- time.Now()
-				<-refreshed
-			}
-			tt.assert(t, refreshFn, cfg)
 		})
 	}
 }

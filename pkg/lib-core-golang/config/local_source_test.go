@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -56,7 +57,7 @@ func TestLocalSource_NewLocalSource(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt()
 		t.Run(tt.name, func(t *testing.T) {
-			src, err := NewLocalSource()
+			src, err := NewLocalSource()()
 			tt.run(t, src.(*localSource), err)
 		})
 	}
@@ -73,7 +74,7 @@ func TestLocalSource_GetParameters(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   func(t *testing.T, params map[param]interface{}, err error)
+		want   func(t *testing.T, params map[paramID]interface{}, err error)
 		after  func()
 	}
 
@@ -132,21 +133,21 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir)}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "key1"},
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"},
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
 					deeply := defaultCfg["deeply"].(map[string]interface{})
 					nested := deeply["nested"].(map[string]interface{})
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "key1"}:                            defaultCfg["key1"],
-						paramImpl{paramKey: "key2"}:                            defaultCfg["key2"],
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"}: nested["key3"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key1"}:                           defaultCfg["key1"],
+						paramID{key: "key2"}:                           defaultCfg["key2"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
 					}, got)
 				},
 			}
@@ -162,21 +163,21 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "key1"},
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramSvc: serviceName, paramKey: "deeply/nested/key3"},
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: serviceName, key: "deeply/nested/key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
 					deeply := defaultCfg["deeply"].(map[string]interface{})
 					nested := deeply["nested"].(map[string]interface{})
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "key1"}:                                      defaultCfg["key1"],
-						paramImpl{paramKey: "key2"}:                                      defaultCfg["key2"],
-						paramImpl{paramSvc: serviceName, paramKey: "deeply/nested/key3"}: nested["key3"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key1"}: defaultCfg["key1"],
+						paramID{key: "key2"}: defaultCfg["key2"],
+						paramID{service: serviceName, key: "deeply/nested/key3"}: nested["key3"],
 					}, got)
 				},
 			}
@@ -190,23 +191,23 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "prod-key1"},
-						paramImpl{paramKey: "key1"},
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"},
+						param{paramID: paramID{key: "prod-key1"}},
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
 					deeply := defaultCfg["deeply"].(map[string]interface{})
 					nested := deeply["nested"].(map[string]interface{})
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "prod-key1"}:                       productionCfg["prod-key1"],
-						paramImpl{paramKey: "key1"}:                            defaultCfg["key1"],
-						paramImpl{paramKey: "key2"}:                            productionCfg["key2"],
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"}: nested["key3"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "prod-key1"}:                      productionCfg["prod-key1"],
+						paramID{key: "key1"}:                           defaultCfg["key1"],
+						paramID{key: "key2"}:                           productionCfg["key2"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
 					}, got)
 				},
 			}
@@ -220,25 +221,25 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "prod-key1"},
-						paramImpl{paramKey: "key1"},
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramKey: "key3"},
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"},
+						param{paramID: paramID{key: "prod-key1"}},
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{key: "key3"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
 					deeply := productionPreprodCfg["deeply"].(map[string]interface{})
 					nested := deeply["nested"].(map[string]interface{})
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "prod-key1"}:                       productionPreprodCfg["prod-key1"],
-						paramImpl{paramKey: "key1"}:                            productionPreprodCfg["key1"],
-						paramImpl{paramKey: "key2"}:                            productionCfg["key2"],
-						paramImpl{paramKey: "key3"}:                            productionCfg["key3"],
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"}: nested["key3"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "prod-key1"}:                      productionPreprodCfg["prod-key1"],
+						paramID{key: "key1"}:                           productionPreprodCfg["key1"],
+						paramID{key: "key2"}:                           productionCfg["key2"],
+						paramID{key: "key3"}:                           productionCfg["key3"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
 					}, got)
 				},
 			}
@@ -249,16 +250,16 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir)}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "no-key1"},
-						paramImpl{paramKey: "key2"},
+						param{paramID: paramID{key: "no-key1"}},
+						param{paramID: paramID{key: "key2"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "key2"}: defaultCfg["key2"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key2"}: defaultCfg["key2"],
 					}, got)
 				},
 			}
@@ -269,16 +270,16 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir)}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramSvc: "deeply", paramKey: "nested/no-key3"},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/no-key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "key2"}: defaultCfg["key2"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key2"}: defaultCfg["key2"],
 					}, got)
 				},
 			}
@@ -288,9 +289,9 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				name:   "error if no default config",
 				fields: fields{opts: []LocalOpt{LocalOpts.WithDir(configDir + "-no-config")}},
 				args: args{
-					params: []param{paramImpl{paramKey: "key1"}},
+					params: []param{param{paramID: paramID{key: "key1"}}},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.Error(t, err) {
 						return
 					}
@@ -311,21 +312,21 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "key1"},
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"},
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
 					deeply := defaultCfg["deeply"].(map[string]interface{})
 					nested := deeply["nested"].(map[string]interface{})
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "key1"}:                            defaultCfg["key1"],
-						paramImpl{paramKey: "key2"}:                            defaultCfg["key2"],
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"}: nested["key3"],
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "key1"}:                           defaultCfg["key1"],
+						paramID{key: "key2"}:                           defaultCfg["key2"],
+						paramID{service: "deeply", key: "nested/key3"}: nested["key3"],
 					}, got)
 				},
 			}
@@ -361,23 +362,23 @@ func TestLocalSource_GetParameters(t *testing.T) {
 				}},
 				args: args{
 					params: []param{
-						paramImpl{paramKey: "prod-key1"},
-						paramImpl{paramKey: "key1"},
-						paramImpl{paramKey: "key2"},
-						paramImpl{paramKey: "key3"},
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"},
+						param{paramID: paramID{key: "prod-key1"}},
+						param{paramID: paramID{key: "key1"}},
+						param{paramID: paramID{key: "key2"}},
+						param{paramID: paramID{key: "key3"}},
+						param{paramID: paramID{service: "deeply", key: "nested/key3"}},
 					},
 				},
-				want: func(t *testing.T, got map[param]interface{}, err error) {
+				want: func(t *testing.T, got map[paramID]interface{}, err error) {
 					if !assert.NoError(t, err) {
 						return
 					}
-					assert.Equal(t, map[param]interface{}{
-						paramImpl{paramKey: "prod-key1"}:                       productionPreprodCfg["prod-key1"],
-						paramImpl{paramKey: "key1"}:                            key1EnvVal,
-						paramImpl{paramKey: "key2"}:                            productionCfg["key2"],
-						paramImpl{paramKey: "key3"}:                            productionCfg["key3"],
-						paramImpl{paramSvc: "deeply", paramKey: "nested/key3"}: key3EnvVal,
+					assert.Equal(t, map[paramID]interface{}{
+						paramID{key: "prod-key1"}:                      productionPreprodCfg["prod-key1"],
+						paramID{key: "key1"}:                           key1EnvVal,
+						paramID{key: "key2"}:                           productionCfg["key2"],
+						paramID{key: "key3"}:                           productionCfg["key3"],
+						paramID{service: "deeply", key: "nested/key3"}: key3EnvVal,
 					}, got)
 				},
 				after: func() {
@@ -394,14 +395,14 @@ func TestLocalSource_GetParameters(t *testing.T) {
 			if tt.after != nil {
 				defer tt.after()
 			}
-			source, err := NewLocalSource(tt.fields.opts...)
+			source, err := NewLocalSource(tt.fields.opts...)()
 			if !assert.NoError(t, err) {
 				return
 			}
 			if !assert.NotNil(t, source, "Expected to get service instance") {
 				return
 			}
-			params, err := source.GetParameters(tt.args.params)
+			params, err := source.GetParameters(context.Background(), tt.args.params)
 			tt.want(t, params, err)
 		})
 	}

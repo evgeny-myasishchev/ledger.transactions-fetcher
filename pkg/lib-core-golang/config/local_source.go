@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -18,8 +19,8 @@ type localSource struct {
 	ignoreDefaultService bool
 }
 
-func (s *localSource) GetParameters(params []param) (map[param]interface{}, error) {
-	values := map[param]interface{}{}
+func (s *localSource) GetParameters(ctx context.Context, params []param) (map[paramID]interface{}, error) {
+	values := map[paramID]interface{}{}
 
 	pick := func(obj interface{}, path string) interface{} {
 		parts := strings.Split(path, "/")
@@ -35,13 +36,13 @@ func (s *localSource) GetParameters(params []param) (map[param]interface{}, erro
 	}
 
 	paramPath := func(p param) string {
-		if p.service() == "" {
-			return p.key()
+		if p.service == "" {
+			return p.key
 		}
-		if s.ignoreDefaultService && p.service() == s.defaultService {
-			return p.key()
+		if s.ignoreDefaultService && p.service == s.defaultService {
+			return p.key
 		}
-		return p.service() + "/" + p.key()
+		return p.service + "/" + p.key
 	}
 
 	for _, configFile := range s.configFiles {
@@ -60,7 +61,7 @@ func (s *localSource) GetParameters(params []param) (map[param]interface{}, erro
 		for _, param := range params {
 			paramVal := pick(configData, paramPath(param))
 			if paramVal != nil {
-				values[param] = paramVal
+				values[param.paramID] = paramVal
 			}
 		}
 	}
@@ -72,7 +73,7 @@ func (s *localSource) GetParameters(params []param) (map[param]interface{}, erro
 				continue
 			}
 			if envVal := os.Getenv(envName.(string)); envVal != "" {
-				values[param] = envVal
+				values[param.paramID] = envVal
 			}
 		}
 	}
@@ -118,29 +119,30 @@ var LocalOpts = struct {
 
 // NewLocalSource creates a source that reads params from a local fs.
 // It is similar to node-config, suports json and custom-environment-variables.json
-func NewLocalSource(opts ...LocalOpt) (Source, error) {
-	source := &localSource{
-		configFiles: []string{"default.json"},
-	}
-
-	if _, file, _, ok := runtime.Caller(0); ok == true {
-		source.dir = filepath.Join(file, "..", "..", "..", "..", "config")
-	} else {
-		panic("Can not resolve config dir")
-	}
-
-	for _, opt := range opts {
-		opt(source)
-	}
-
-	overridesFilePath := path.Join(source.dir, "custom-environment-variables.json")
-	if overridesBuffer, err := ioutil.ReadFile(overridesFilePath); err == nil {
-		envOverrides := map[string]interface{}{}
-		if err := json.Unmarshal(overridesBuffer, &envOverrides); err != nil {
-			return nil, err
+func NewLocalSource(opts ...LocalOpt) SourceFactory {
+	return func() (Source, error) {
+		source := &localSource{
+			configFiles: []string{"default.json"},
 		}
-		source.envOverrides = envOverrides
-	}
 
-	return source, nil
+		if _, file, _, ok := runtime.Caller(0); ok == true {
+			source.dir = filepath.Join(file, "..", "..", "..", "..", "config")
+		} else {
+			panic("Can not resolve config dir")
+		}
+
+		for _, opt := range opts {
+			opt(source)
+		}
+
+		overridesFilePath := path.Join(source.dir, "custom-environment-variables.json")
+		if overridesBuffer, err := ioutil.ReadFile(overridesFilePath); err == nil {
+			envOverrides := map[string]interface{}{}
+			if err := json.Unmarshal(overridesBuffer, &envOverrides); err != nil {
+				return nil, err
+			}
+			source.envOverrides = envOverrides
+		}
+		return source, nil
+	}
 }

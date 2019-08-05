@@ -3,6 +3,7 @@ module github.com/evgeny-myasishchev/ledger.transactions-fetcher
 go 1.12
 
 require (
+	github.com/aws/aws-sdk-go v1.21.9
 	github.com/bxcodec/faker/v3 v3.1.0
 	github.com/cespare/reflex v0.2.0
 	github.com/fsnotify/fsnotify v1.4.7 // indirect

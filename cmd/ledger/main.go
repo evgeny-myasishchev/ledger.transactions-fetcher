@@ -13,7 +13,6 @@ import (
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/ledger"
 
-	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/config"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/app"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/auth"
 
@@ -42,18 +41,22 @@ func showHelpAndExit() {
 }
 
 func main() {
+	ctx := context.Background()
 	if cliArgs.user == "" || cliArgs.cmd == "" {
 		showHelpAndExit()
 	}
 
-	appCfg := config.LoadAppConfig()
+	appCfg, err := app.LoadConfig()
+	if err != nil {
+		logger.WithError(err).Error(ctx, "Failed to load app config")
+		os.Exit(1)
+	}
 
 	diag.SetupLoggingSystem(func(setup diag.LoggingSystemSetup) {
-		setup.SetLogLevel(appCfg.Log.Level.Value())
+		setup.SetLogLevel(appCfg.Log.Level)
 	})
 
 	injector := app.BootstrapServices(appCfg)
-	ctx := context.Background()
 
 	switch cliArgs.cmd {
 	case "accounts":
@@ -62,7 +65,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			api, err := ledger.NewAPI(ctx, appCfg.Ledger.API.Value(), idToken)
+			api, err := ledger.NewAPI(ctx, appCfg.Ledger.API, idToken)
 			if err != nil {
 				return err
 			}
@@ -98,7 +101,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			api, err := ledger.NewAPI(ctx, appCfg.Ledger.API.Value(), idToken)
+			api, err := ledger.NewAPI(ctx, appCfg.Ledger.API, idToken)
 			if err != nil {
 				return err
 			}
