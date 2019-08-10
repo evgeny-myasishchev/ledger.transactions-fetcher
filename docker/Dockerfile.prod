@@ -11,8 +11,10 @@ COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /go/src/
-COPY --from=dev /go/bin/${SERVICE_NAME} /usr/local/bin/${SERVICE_NAME}
-COPY --from=dev /go/src/geodb/ /go/src/geodb/
-COPY --from=dev /go/src/config/ /go/src/config/
+COPY --from=dev /go/bin/auth                 /usr/local/bin/auth
+COPY --from=dev /go/bin/fetch-transactions   /usr/local/bin/fetch-transactions
+COPY --from=dev /go/bin/ledger               /usr/local/bin/ledger
+COPY --from=dev /go/bin/storage              /usr/local/bin/storage
+COPY --from=dev /go/src/config/              /go/src/config/
 
 ENTRYPOINT [ "docker-entrypoint.sh" ]
