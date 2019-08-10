@@ -3,6 +3,8 @@ tmp/
 config/fetchers
 config/local*.json
 db/
+.gcp/
+.terraform/
 
 # Binaries for programs and plugins
 *.exe
