@@ -44,6 +44,10 @@ docker_build:
 	@echo Building dev image
 	docker build -f docker/Dockerfile.dev --build-arg SERVICE_NAME=$(SERVICE_NAME) . -t ${DEV_IMAGE}
 
+docker_test:
+	@echo Building dev image
+	docker run --rm ${DEV_IMAGE} make test
+
 docker_build_release: docker_build
 	@echo Building release image
 	docker build --build-arg DEV_IMAGE=$(DEV_IMAGE) --build-arg SERVICE_NAME=$(SERVICE_NAME) -f docker/Dockerfile.prod . -t ${PROD_IMAGE}

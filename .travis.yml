@@ -1,9 +1,12 @@
 language: go
+services: docker
 
 go:
 - 1.12
 
 jobs:
   include:
+    - stage: build dev image
+      script: make docker_build
     - stage: test
-      script: make test
+      script: make docker_test
