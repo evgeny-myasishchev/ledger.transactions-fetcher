@@ -7,5 +7,6 @@ go:
 jobs:
   include:
     - stage: build
-      script: make docker_build
-    - script: make docker_test
+      script: 
+        - make docker_build
+        - make docker_test
