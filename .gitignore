@@ -5,6 +5,7 @@ config/local*.json
 db/
 .gcp/
 .terraform/
+.DS_Store
 
 # Binaries for programs and plugins
 *.exe
