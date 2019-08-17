@@ -1,8 +1,9 @@
-FROM golang:1.12
+FROM golang:1.12.9-alpine3.10
 ARG SERVICE_NAME
 ENV SERVICE_NAME ${SERVICE_NAME}
 
 ENV GO111MODULE=on
+ENV CGO_ENABLED=1
 
 WORKDIR /go/src/
 COPY bin/ /go/src/bin/

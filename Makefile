@@ -13,13 +13,13 @@ GIT_REF = $(shell git branch | grep \\* | cut -d ' ' -f2)
 GIT_URL = $(shell git config --get remote.origin.url)
 
 INSTALL_ENV = CGO_ENABLED=1 GO111MODULE=on
-INSTALL_FLAGS = -installsuffix "static" -ldflags "\
+INSTALL_FLAGS = -installsuffix "static" -ldflags '\
 	-X $(shell go list -m)/pkg/version.AppName=${SERVICE_NAME}\
 	-X $(shell go list -m)/pkg/version.Version=${VERSION}\
 	-X $(shell go list -m)/pkg/version.GitHash=${GIT_HASH}\
 	-X $(shell go list -m)/pkg/version.GitRef=${GIT_REF}\
 	-X $(shell go list -m)/pkg/version.GitURL=${GIT_URL}\
-	"
+	'
 
 DEV_IMAGE = dev/${SERVICE_NAME}:latest
 PROD_IMAGE = ${REGISTRY}/${SERVICE_NAME}
