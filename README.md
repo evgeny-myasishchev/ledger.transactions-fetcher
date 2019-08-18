@@ -57,3 +57,45 @@ go run cmd/ledger/main.go -cmd sync -user <email> -account <account-id> | npx pi
 Some mocks are generated with `mockgen`. Generate commands are added to Makefile (see mockgen target). Please add new mocks there.
 
 Make sure to regenerate mocks if updating interfaces (e.g make mockgen).
+
+## Prod
+
+### Naïve approach
+
+Create a folder on a target server, something like: ~/ledger-services/prod/transactions-fetcher
+
+Create a `env` file with contents similar to below:
+```
+APP_ENV=production
+GOOGLE_CLIENT_ID=<xxx>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=<yyy>
+```
+
+Create `fetch.sh` file with contents similar to below:
+```
+#!/usr/bin/env sh
+
+set -e
+
+days=${days:-5}
+
+fetch-transactions -acc <ledger-account-1> -days ${days} -user <user@email.com>
+fetch-transactions -acc <ledger-account-2> -days ${days} -user <user@email.com>
+fetch-transactions -acc <ledger-account-3> -days ${days} -user <user@email.com>
+```
+
+Create `sync.sh` file with contents similar to below:
+```
+#!/usr/bin/env sh
+
+set -e
+
+ledger -cmd sync -user <user@email.com> -account <ledger-account-1>
+ledger -cmd sync -user <user@email.com> -account <ledger-account-2>
+ledger -cmd sync -user <user@email.com> -account <ledger-account-3>
+```
+
+Copy `bin/create-containers.sh` to the folder and run it. Then setup local db:
+
+```
+```
