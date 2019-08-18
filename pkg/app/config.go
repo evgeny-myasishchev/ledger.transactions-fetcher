@@ -1,6 +1,8 @@
 package app
 
 import (
+	"os"
+
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/config"
 	coreCfg "github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/lib-core-golang/config"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/version"
@@ -21,7 +23,7 @@ func LoadConfig() (*config.Config, error) {
 
 	// When running locally using local source for remote params
 	// Make sure to define sensible defaults
-	if appEnv.Name == "dev" {
+	if appEnv.Name == "dev" || os.Getenv("CONFIG_REMOTE_STORAGE") == "local" {
 		remoteSource = coreCfg.NewLocalSource(
 			coreCfg.LocalOpts.WithAppEnv(appEnv),
 			coreCfg.LocalOpts.WithDir("config"),
