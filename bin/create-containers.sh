@@ -13,6 +13,10 @@ COMMON_PARAMS="--env-file ${PWD}/env \
 
 docker pull ${IMAGE}
 
+for i in $(docker ps -aq --filter name=transactions-fetcher); do
+    docker rm "$i"
+done
+
 docker create --name=transactions-fetcher-fetch \
               ${COMMON_PARAMS} \
               ./fetch.sh
