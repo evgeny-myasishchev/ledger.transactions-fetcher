@@ -67,6 +67,7 @@ Create a folder on a target server, something like: ~/ledger-services/prod/trans
 Create a `env` file with contents similar to below:
 ```
 APP_ENV=production
+CONFIG_REMOTE_STORAGE=local
 GOOGLE_CLIENT_ID=<xxx>.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<yyy>
 ```
@@ -95,7 +96,42 @@ ledger -cmd sync -user <user@email.com> -account <ledger-account-2>
 ledger -cmd sync -user <user@email.com> -account <ledger-account-3>
 ```
 
-Copy `bin/create-containers.sh` to the folder and run it. Then setup local db:
-
+Copy `bin/create-containers.sh` to the folder and run it. To rerun it remove containers first:
 ```
+docker rm transactions-fetcher-fetch
+docker rm transactions-fetcher-sync
+```
+
+Setup local db:
+```
+mkdir db
+docker run \
+    --env-file env \
+    -v ${PWD}/db:/go/src/db \
+    --rm \
+    evgenymyasishchev/transactions-fetcher:latest storage -cmd setup
+```
+
+Create user fetchers config file `config/fetchers/user@email.com.json`:
+```
+{
+    "UserID": "user@email.com",
+    "Merchants": {
+        "<ledger-account-x>": {
+            "ID": "<id>",
+            "Password": "<pass>",
+            "BankAccount": "<bank account>"
+        }
+    }
+}
+```
+
+Now fetch transactions:
+```
+docker start -ai transactions-fetcher-fetch
+```
+
+And sync fetched transactions:
+```
+docker start -ai transactions-fetcher-sync
 ```

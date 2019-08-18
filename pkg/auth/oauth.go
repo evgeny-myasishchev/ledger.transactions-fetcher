@@ -74,6 +74,7 @@ func (c *googleOAuthClient) PerformRefreshFlow(ctx context.Context, refreshToken
 	res := request.Do(ctx, req)
 	var refreshedToken RefreshedToken
 	if err := res.DecodeJSON(&refreshedToken); err != nil {
+		logger.Info(ctx, "Failed to refresh user token. Client used: %v", c.clientID)
 		return nil, errors.Wrap(err, "Failed to refresh token")
 	}
 	return &refreshedToken, nil
