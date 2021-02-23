@@ -100,6 +100,7 @@ Copy `bin/create-containers.sh` to the folder and run it. To rerun it remove con
 ```
 docker rm transactions-fetcher-fetch
 docker rm transactions-fetcher-sync
+docker rm transactions-fetcher-shell
 ```
 
 Setup local db:
@@ -134,4 +135,10 @@ docker start -ai transactions-fetcher-fetch
 And sync fetched transactions:
 ```
 docker start -ai transactions-fetcher-sync
+```
+
+Cron it every 10 minutes:
+
+```
+*/10 * * * * docker start -ai transactions-fetcher-fetch && docker start -ai transactions-fetcher-sync
 ```

@@ -24,3 +24,7 @@ docker create --name=transactions-fetcher-fetch \
 docker create --name=transactions-fetcher-sync \
               ${COMMON_PARAMS} \
               ./sync.sh
+
+docker create --name=transactions-fetcher-shell \
+              ${COMMON_PARAMS} \
+              sh
