@@ -1,6 +1,6 @@
 module github.com/evgeny-myasishchev/ledger.transactions-fetcher
 
-go 1.12
+go 1.16
 
 require (
 	github.com/aws/aws-sdk-go v1.21.9
