@@ -7,21 +7,21 @@ Add google client-id/secret to config
 
 Setup the db:
 ```
-go run cmd/storage/main.go -cmd setup
+go run ./cmd/storage/ -cmd setup
 ```
 
 Get oauth code. To do this you need to generate code grant url, navigate it and authenticate with ledger known account:
 ```
-go run cmd/auth/*.go -cmd auth-url
+go run ./cmd/auth/ -cmd auth-url
 ```
 
 Register the user:
 ```
-go run cmd/auth/*.go -cmd register-user -code "XXX"
+go run ./cmd/auth/ -cmd register-user -code "XXX"
 ```
 Where XXX is a code obtained with a previous step
 
-PBANUA2X: Prepare merchant config. Create file config/fetchers/\<email\>.json:
+Prepare merchant config. Create file config/fetchers/\<email\>.json:
 ```
 {
     "UserID": "<email>",
@@ -41,13 +41,13 @@ Here and below:
 Fetch transactions:
 
 ```
-go run cmd/fetch-transactions/main.go -acc <account-id> -days 5 -user <email> | npx pino-pretty
+go run ./cmd/fetch-transactions/ -bank=pbanua2x -acc <account-id> -days 5 -user <email> | npx pino-pretty
 ```
 
 Sync fetched transactions:
 
 ```
-go run cmd/ledger/main.go -cmd sync -user <email> -account <account-id> | npx pino-pretty
+go run ./cmd/ledger/ -cmd sync -user <email> -account <account-id> | npx pino-pretty
 ```
 
 ## Dev
@@ -80,9 +80,9 @@ set -e
 
 days=${days:-5}
 
-fetch-transactions -acc <ledger-account-1> -days ${days} -user <user@email.com>
-fetch-transactions -acc <ledger-account-2> -days ${days} -user <user@email.com>
-fetch-transactions -acc <ledger-account-3> -days ${days} -user <user@email.com>
+fetch-transactions -bank=<bankid> -acc <ledger-account-1> -days ${days} -user <user@email.com>
+fetch-transactions -bank=<bankid> -acc <ledger-account-2> -days ${days} -user <user@email.com>
+fetch-transactions -bank=<bankid> -acc <ledger-account-3> -days ${days} -user <user@email.com>
 ```
 
 Create `sync.sh` file with contents similar to below:

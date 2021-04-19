@@ -1,0 +1,17 @@
+name: Build and Test
+on: [push]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - run: make docker_build
+      - run: make docker_test
+      - name: Push release image
+        if: ${{ github.ref == 'master' }}
+        run: make docker_build_release && docker_push_release
