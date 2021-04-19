@@ -80,9 +80,9 @@ set -e
 
 days=${days:-5}
 
-fetch-transactions -acc <ledger-account-1> -days ${days} -user <user@email.com>
-fetch-transactions -acc <ledger-account-2> -days ${days} -user <user@email.com>
-fetch-transactions -acc <ledger-account-3> -days ${days} -user <user@email.com>
+fetch-transactions -bank=<bankid> -acc <ledger-account-1> -days ${days} -user <user@email.com>
+fetch-transactions -bank=<bankid> -acc <ledger-account-2> -days ${days} -user <user@email.com>
+fetch-transactions -bank=<bankid> -acc <ledger-account-3> -days ${days} -user <user@email.com>
 ```
 
 Create `sync.sh` file with contents similar to below:
