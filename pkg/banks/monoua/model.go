@@ -27,12 +27,16 @@ type monoTransaction struct {
 }
 
 func (stmt *monoTransaction) ToDTO() (*dal.PendingTransactionDTO, error) {
+	typeID := ledger.TransactionTypeIncome
+	if stmt.Amount < 0 {
+		typeID = ledger.TransactionTypeExpense
+	}
 	return &dal.PendingTransactionDTO{
 		ID:        stmt.ID,
 		Comment:   stmt.Description,
 		AccountID: stmt.ledgerAccountID,
 		Amount:    strconv.FormatFloat(float64(stmt.Amount)/100, 'f', -1, 64),
-		TypeID:    ledger.TransactionTypeExpense,
+		TypeID:    typeID,
 
 		Date: time.Unix(stmt.Time, 0).Format(time.RFC3339),
 	}, nil

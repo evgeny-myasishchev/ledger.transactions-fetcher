@@ -2,6 +2,8 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/aws/aws-sdk-go v1.21.9 h1:+HXP97l4IbJvccwwNoweEknroEcX8QLwExcnc+Kxobg=
 github.com/aws/aws-sdk-go v1.21.9/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/brianvoe/gofakeit/v6 v6.4.0 h1:iI6ItvrSB8vqDiaonjMXqQ63osRWk2W3hFHDpoJTqmc=
+github.com/brianvoe/gofakeit/v6 v6.4.0/go.mod h1:palrJUk4Fyw38zIFB/uBZqsgzW5VsNllhHKKwAebzew=
 github.com/bxcodec/faker/v3 v3.1.0 h1:VCCPusvvk1My6RjWFnqVbh6EdHDqjWmrHJCHduUksV0=
 github.com/bxcodec/faker/v3 v3.1.0/go.mod h1:gF31YgnMSMKgkvl+fyEo1xuSMbEuieyqfeslGYFjneM=
 github.com/cespare/reflex v0.3.0 h1:9q8ZXMh+oW4quohPBcLsT56TFl4/DeQsTjZASe4wgoY=
