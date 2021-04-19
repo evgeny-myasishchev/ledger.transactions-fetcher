@@ -9,6 +9,7 @@ import (
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/dal"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks"
+	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks/monoua"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/banks/pbanua2x"
 
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/app"
@@ -22,6 +23,7 @@ var cliArgs struct {
 	user            string
 	ledgerAccountID string
 	daysToFetch     int64
+	bank            string
 }
 
 func showHelpAndExit() {
@@ -33,12 +35,13 @@ func init() {
 	flag.StringVar(&cliArgs.user, "user", "", "User to fetch transactions for (email)")
 	flag.StringVar(&cliArgs.ledgerAccountID, "acc", "", "Ledger account ID to fetch for")
 	flag.Int64Var(&cliArgs.daysToFetch, "days", 2, "Number of days to fetch transactions for")
+	flag.StringVar(&cliArgs.bank, "bank", "", "Bank code to fetch transactions for")
 
 	flag.Parse()
 }
 
 func main() {
-	if cliArgs.user == "" || cliArgs.ledgerAccountID == "" {
+	if cliArgs.user == "" || cliArgs.ledgerAccountID == "" || cliArgs.bank == "" {
 		showHelpAndExit()
 	}
 	ctx := context.Background()
@@ -56,9 +59,16 @@ func main() {
 	injector := app.BootstrapServices(appCfg)
 
 	err = injector(func(fetcherConfig banks.FetcherConfig, storage dal.Storage) error {
-		fetcher, err := pbanua2x.NewFetcher(ctx, cliArgs.user, fetcherConfig)
-		if err != nil {
-			return err
+		var fetcher banks.Fetcher
+		var err error
+		switch cliArgs.bank {
+		case "pbanua2x":
+			fetcher, err = pbanua2x.NewFetcher(ctx, cliArgs.user, fetcherConfig)
+			if err != nil {
+				return err
+			}
+		case "monoua":
+			fetcher, err = monoua.NewFetcher(ctx, cliArgs.user, fetcherConfig)
 		}
 		to := time.Now()
 		from := to.Add(time.Duration(-24*cliArgs.daysToFetch) * time.Hour)
