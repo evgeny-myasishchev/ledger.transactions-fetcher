@@ -5,5 +5,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: make docker-build
+      - run: make docker_build
       - run: docker_test
