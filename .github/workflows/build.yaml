@@ -6,4 +6,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: make docker_build
-      - run: docker_test
+      - run: make docker_test
