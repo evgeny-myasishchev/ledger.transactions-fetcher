@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/bxcodec/faker/v3"
 	"github.com/evgeny-myasishchev/ledger.transactions-fetcher/pkg/types"
 	_ "github.com/mattn/go-sqlite3"
@@ -47,7 +48,7 @@ func withSyncedAt(syncedAt time.Time) trxOpt {
 
 func randTrx(opts ...trxOpt) *PendingTransactionDTO {
 	dto := &PendingTransactionDTO{
-		ID:        faker.Word(),
+		ID:        gofakeit.UUID(),
 		Amount:    faker.Word(),
 		Date:      faker.Word(),
 		Comment:   faker.Word(),
