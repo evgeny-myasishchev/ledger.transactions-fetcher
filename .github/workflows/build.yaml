@@ -13,5 +13,5 @@ jobs:
       - run: make docker_build
       - run: make docker_test
       - name: Push release image
-        if: ${{ github.ref == 'ref/head/master' }}
-        run: make docker_build_release && docker_push_release
+        if: github.ref == 'refs/heads/master'
+        run: make docker_build_release && make docker_push_release
