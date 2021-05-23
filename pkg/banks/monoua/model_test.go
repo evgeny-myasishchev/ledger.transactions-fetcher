@@ -2,6 +2,7 @@ package monoua
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -46,7 +47,7 @@ func Test_monoTransaction_ToDTO(t *testing.T) {
 						ID:        tx.ID,
 						Comment:   tx.Description,
 						AccountID: tx.ledgerAccountID,
-						Amount:    strconv.FormatFloat(float64(tx.Amount)/100, 'f', -1, 64),
+						Amount:    strconv.FormatFloat(math.Abs(float64(tx.Amount))/100, 'f', -1, 64),
 						Date:      time.Unix(tx.Time, 0).Format(time.RFC3339),
 						TypeID:    ledger.TransactionTypeExpense,
 					},

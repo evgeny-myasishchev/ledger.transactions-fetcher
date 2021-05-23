@@ -4,4 +4,4 @@ set -e
 set -u
 set -o pipefail
 
-reflex $(cat .reflex) -- go test "$@"
+reflex $(cat .reflex) -- go test -v -failfast -count=1 "$@"

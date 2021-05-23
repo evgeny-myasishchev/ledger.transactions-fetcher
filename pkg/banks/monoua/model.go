@@ -1,6 +1,7 @@
 package monoua
 
 import (
+	"math"
 	"strconv"
 	"time"
 
@@ -35,7 +36,7 @@ func (stmt *monoTransaction) ToDTO() (*dal.PendingTransactionDTO, error) {
 		ID:        stmt.ID,
 		Comment:   stmt.Description,
 		AccountID: stmt.ledgerAccountID,
-		Amount:    strconv.FormatFloat(float64(stmt.Amount)/100, 'f', -1, 64),
+		Amount:    strconv.FormatFloat(math.Abs(float64(stmt.Amount))/100, 'f', -1, 64),
 		TypeID:    typeID,
 
 		Date: time.Unix(stmt.Time, 0).Format(time.RFC3339),
